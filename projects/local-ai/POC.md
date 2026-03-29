@@ -20,8 +20,10 @@
 
 Skip or verify if you already did this on this machine.
 
+- [ ] **asdf (optional):** Repo root **`.tool-versions`** and **`projects/ollama/.tool-versions`** pin **`ollama 0.17.0`** so `asdf install` / `asdf local` match the CLI you use.
 - [ ] `ollama --version` and `curl -s http://127.0.0.1:11434/api/tags` succeed.
-- [ ] `ollama pull <your-model>` (same tag you will use in WebUI and Interpreter).
+- [ ] **If `/api/tags` already lists models:** You may already have the **agent-0** baseline: **`qwen2.5:0.5b`** (pulled), **`node-0:latest`** (custom, built from **`../ollama/custom-models/node-0`**), and **`codellama:latest`** (pulled separately; not in repo). See **`../ollama/README.md`** § *What shows up in GET /api/tags*.
+- [ ] Otherwise `ollama pull <your-model>` (same tag you will use in WebUI and Open Interpreter—can be `qwen2.5:0.5b`, `node-0`, `codellama`, or a larger model from the main **README**).
 - [ ] Create sandbox directory, e.g. `~/BusinessSandbox`.
 - [ ] Add dummy files: `notes.md`, `hello.py` (optional sanity check).
 
