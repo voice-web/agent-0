@@ -4,7 +4,7 @@ Private, local AI workstation: **research** (Open WebUI + RAG + web search), **a
 
 **Repository:** This project lives under **`agent-0`** at `projects/local-ai/`. It was removed from the **`vap`** repo to keep all implementation and POC work here. Older notes and host scripts live next door in **`../ollama/`** (reference bundle).
 
-**POC roadmap:** Step-by-step phases, checkboxes, and definition of done → **[POC.md](POC.md)**.
+**POC roadmap:** Step-by-step phases, checkboxes, and definition of done → **[POC.md](POC.md)**. The checklist is the **spec**; the long-term plan is a **single scripted deploy** with per-step verification on new machines — see **POC.md** → *Last step (future): scripted, repeatable “deploy the POC”* (not built yet; **`verify-phase1.sh`** is the first verify hook).
 
 **Ollama:** If you already installed Ollama and pulled models on this machine, treat **Part 1** as verification only and start from **POC.md** Phase 2–3 or **Part 2** below.
 

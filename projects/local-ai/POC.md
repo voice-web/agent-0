@@ -101,3 +101,19 @@ python3 scripts/fetch_url.py "https://example.com" -o ~/vap-sandbox-0/example.ht
 ```
 
 **Linux:** If `host.docker.internal` fails, see the main **README** bridge section (host network or `172.17.0.1`).
+
+---
+
+## Last step (future): scripted, repeatable “deploy the POC”
+
+**Not implemented yet** — this is the target pattern.
+
+On a **new machine**, you should eventually be able to run something like **one entrypoint** (e.g. `scripts/deploy-poc.sh` or a small CLI) that:
+
+1. **Runs each phase in order** — prerequisites checks, sandbox + starters, Docker/OrbStack + Compose for WebUI, optional Interpreter venv hints, etc.
+2. **Verifies after each step** — same idea as **`scripts/verify-phase1.sh`**: exit non-zero with a clear message so you never assume a silent failure.
+3. **Stays idempotent where possible** — safe to re-run; skip or no-op when already satisfied.
+
+Today, **`verify-phase1.sh`** is the first example of that pattern. Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
+
+When you add automation, link the entrypoint here and keep **manual** steps documented for debugging.
