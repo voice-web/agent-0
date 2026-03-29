@@ -20,6 +20,35 @@ ollama_ok() {
   curl -sf --connect-timeout 2 --max-time 5 "${OLLAMA_URL}/api/tags" >/dev/null 2>&1
 }
 
+# True if something is listening on 11434 (macOS / Linux).
+ollama_port_listening() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:11434 -sTCP:LISTEN >/dev/null 2>&1
+    return $?
+  fi
+  # Fallback: bash /dev/tcp (no extra deps)
+  (echo >/dev/tcp/127.0.0.1/11434) >/dev/null 2>&1
+}
+
+# Start `ollama serve` when the GUI app is missing (common with Homebrew / asdf ollama).
+try_start_ollama_cli() {
+  command -v ollama >/dev/null 2>&1 || return 1
+  if pgrep -f '[o]llama serve' >/dev/null 2>&1; then
+    say "Found existing \`ollama serve\` process; waiting for API…"
+    return 0
+  fi
+  if ollama_port_listening; then
+    return 0
+  fi
+  local log="${TMPDIR:-/tmp}/local-ai-ollama-serve.log"
+  say "Nothing on :11434 — starting Ollama via CLI (\`ollama serve\`). Log: $log"
+  # Same default as projects/ollama/scripts/ollama-bg (quiet MLX probe noise on some Mac builds).
+  export OLLAMA_LLM_LIBRARY="${OLLAMA_LLM_LIBRARY:-cpu_avx2}"
+  nohup ollama serve >>"$log" 2>&1 &
+  sleep 2
+  return 0
+}
+
 ensure_docker() {
   if docker_ok; then
     say "Docker engine already reachable."
@@ -68,21 +97,28 @@ ensure_ollama() {
     exit 1
   fi
 
-  say "Ollama not responding on :11434; trying to start (macOS: Ollama app)…"
+  say "Ollama not responding on :11434; trying to start…"
   if [[ "$(uname -s)" == "Darwin" ]]; then
+    # Official app (if installed); no-op for CLI-only Homebrew/asdf installs.
     open -a Ollama 2>/dev/null || true
-  elif command -v ollama >/dev/null 2>&1; then
-    # Linux: one attempt — user may already use systemd; avoid duplicate servers
-    if ! pgrep -x ollama >/dev/null 2>&1; then
-      echo "    hint: start Ollama with: ollama serve   or: sudo systemctl start ollama" >&2
-    fi
   fi
 
   local waited=0
+  local tried_cli=0
   while ! ollama_ok; do
+    # After ~10s, if nothing is listening on 11434, start `ollama serve` (CLI install path).
+    if (( waited >= 10 && tried_cli == 0 )); then
+      if ! ollama_port_listening; then
+        try_start_ollama_cli || true
+      fi
+      tried_cli=1
+    fi
+
     if (( waited >= 90 )); then
       echo "error: Ollama did not become ready at ${OLLAMA_URL} (after ${waited}s)." >&2
-      echo "    Start it manually (macOS: Ollama app; Linux: ollama serve / systemctl)." >&2
+      echo "    macOS: install the Ollama app, or ensure \`ollama\` is on PATH and run: ollama serve" >&2
+      echo "    Linux: ollama serve   or: sudo systemctl start ollama" >&2
+      echo "    Log (if CLI fallback ran): \${TMPDIR:-/tmp}/local-ai-ollama-serve.log" >&2
       exit 1
     fi
     sleep 2
