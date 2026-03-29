@@ -15,7 +15,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV BASIC_HTTP_ROOT=/srv/www
 ENV PORT=8080
 
-RUN mkdir -p /srv/www
+# Default /srv/www: README only unless you add index.html; / echoes request as JSON when no index.html.
+COPY default-site/ /srv/www/
 
 EXPOSE 8080
 

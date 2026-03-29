@@ -1,6 +1,6 @@
 [project]
 name = "basic-http"
-version = "0.0.1"
+version = "0.0.5"
 description = "Minimal FastAPI static file server; mount site files at /srv/www"
 readme = "README.md"
 requires-python = ">=3.12"
