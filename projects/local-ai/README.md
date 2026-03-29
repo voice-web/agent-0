@@ -132,7 +132,7 @@ docker compose up -d
 
 This uses **`docker-compose.yml`**: `OLLAMA_BASE_URL=http://host.docker.internal:11434`, port **3000** on the host. OrbStack resolves **`host.docker.internal`** to your Mac like Docker Desktop.
 
-Open **http://localhost:3000**, create the **first** admin account, then sign in.
+Open **http://localhost:3000**. Use **`.env`** + **`WEBUI_ADMIN_*`** for a headless admin on fresh volumes (**`DOCKER.md` §4**), or use the setup wizard once. User data persists in volume **`local-ai_open-webui`** across **`docker compose down`** (without **`-v`**).
 
 ### Compose without OrbStack
 
@@ -155,7 +155,7 @@ docker run -d \
   ghcr.io/open-webui/open-webui:main
 ```
 
-Open **http://localhost:3000**, create the **first** admin account, then sign in.
+Open **http://localhost:3000**. Use **`.env`** + **`WEBUI_ADMIN_*`** for a headless admin on fresh volumes (**`DOCKER.md` §4**), or use the setup wizard once. User data persists in volume **`local-ai_open-webui`** across **`docker compose down`** (without **`-v`**).
 
 ### Linux (Docker Engine)
 

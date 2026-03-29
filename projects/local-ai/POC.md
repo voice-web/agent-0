@@ -64,6 +64,7 @@ Pick **one** path for the POC (add others later):
 | **C. `scripts/fetch_url.py`** | Fetch a URL to a text file in the sandbox, then point the model at that file. |
 
 - [ ] **A:** WebUI reachable at **http://localhost:3000**; models visible; web search enabled if desired.
+- [ ] **Admin:** **`cp .env.example .env`**, set **`WEBUI_ADMIN_*`**, then **`docker compose up -d --force-recreate open-webui`** (or **`./scripts/start-poc.sh`**) so the first user is created without the wizard — see **`DOCKER.md` §4**. Data survives **`docker compose down`**; use **`down -v`** only for a full reset.
 - [ ] **B:** At least one real note/file in sandbox used in a chat.
 - [ ] **C:** `python3 scripts/fetch_url.py https://example.com -o ~/vap-sandbox-0/page.html` (from `projects/local-ai`).
 

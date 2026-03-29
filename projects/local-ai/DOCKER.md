@@ -69,7 +69,7 @@ docker compose up -d
 
 Open **http://localhost:3000**, complete first-time admin setup, then chat using your pulled Ollama models.
 
-**Stop / remove** (keeps the named volume `open-webui` with WebUI data):
+**Stop / remove** (keeps the volume **`local-ai_open-webui`** with WebUI data; omit **`-v`**):
 
 ```bash
 docker compose down
@@ -83,7 +83,47 @@ docker compose logs -f open-webui
 
 ---
 
-## 4. `docker compose` vs `docker-compose`
+## 4. Admin account (skip the setup wizard)
+
+### Where data lives
+
+Chats and users live in the Docker volume **`local-ai_open-webui`** (Compose project name **`local-ai`** + volume **`open-webui`**).
+
+| Action | Effect |
+|--------|--------|
+| **`docker compose down`** | Container gone; **volume kept** → same admin next **`up`**. |
+| **`docker compose down -v`** or **`docker volume rm local-ai_open-webui`** | **Fresh DB** → you can seed admin again with `.env` or the UI. |
+
+### A. Headless admin via `.env` (recommended)
+
+Open WebUI supports **`WEBUI_ADMIN_EMAIL`** + **`WEBUI_ADMIN_PASSWORD`** (optional **`WEBUI_ADMIN_NAME`**) so the **first** user is created at **startup** when the database has **no users** ([env docs](https://docs.openwebui.com/reference/env-configuration)).
+
+1. **`cp .env.example .env`** in **`projects/local-ai/`** and set a strong password.
+2. Apply env to the container (first time or after editing `.env`):
+
+   ```bash
+   docker compose up -d --force-recreate open-webui
+   ```
+
+   Or run **`./scripts/start-poc.sh`** (runs **`compose up -d`**).
+
+3. Sign in at **http://127.0.0.1:3000** with that email/password.
+
+If you **already** completed the wizard once, these variables are **ignored** until you reset the volume.
+
+### B. Signup HTTP API (optional)
+
+If WebUI is up and sign-up is still allowed, you can create the first user with:
+
+```bash
+./scripts/create-webui-admin-api.sh
+```
+
+Uses **`WEBUI_ADMIN_EMAIL`**, **`WEBUI_ADMIN_PASSWORD`**, **`WEBUI_ADMIN_NAME`** from **`./.env`** or your shell. Prefer **A** for new stacks.
+
+---
+
+## 5. `docker compose` vs `docker-compose`
 
 - **Compose v2 (plugin):** `docker compose` (space) — preferred.
 - **Compose v1 (standalone):** `docker-compose` (hyphen) — use if `docker compose` is missing.
@@ -94,6 +134,6 @@ docker compose version
 
 ---
 
-## 5. Linux / other engines
+## 6. Linux / other engines
 
 On **Linux** Docker Engine, **`host.docker.internal`** may be undefined. See the main **[README.md](README.md)** Part 2 (host network or bridge IP). **OrbStack** is macOS-focused; on Linux use your distro’s Docker and those notes.

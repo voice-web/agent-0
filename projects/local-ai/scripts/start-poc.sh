@@ -176,3 +176,9 @@ echo ""
 echo "    Open WebUI: ${WEBUI_URL}"
 echo "    Ollama API:   ${OLLAMA_URL}"
 echo "    Stop stack:   ${ROOT}/scripts/stop-poc.sh"
+if [[ -f "${ROOT}/.env" ]] && grep -qE '^WEBUI_ADMIN_EMAIL=.+' "${ROOT}/.env" 2>/dev/null && grep -qE '^WEBUI_ADMIN_PASSWORD=.+' "${ROOT}/.env" 2>/dev/null; then
+  echo "    Headless admin: configured in .env (applied only when the DB has **no users** yet)."
+else
+  echo "    Admin account: copy .env.example → .env and set WEBUI_ADMIN_* for auto-admin on **fresh** volumes, or sign up in the UI."
+  echo "                   API fallback: ./scripts/create-webui-admin-api.sh (after WebUI is up)."
+fi

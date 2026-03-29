@@ -17,6 +17,10 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      # First boot only (empty DB): headless admin — see .env.example (Compose loads `.env`).
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD:-}
+      WEBUI_ADMIN_NAME: ${WEBUI_ADMIN_NAME:-Admin}
     volumes:
       - open-webui:/app/backend/data
 
