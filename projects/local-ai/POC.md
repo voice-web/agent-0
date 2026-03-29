@@ -24,7 +24,7 @@ Skip or verify if you already did this on this machine.
 - [ ] `ollama --version` and `curl -s http://127.0.0.1:11434/api/tags` succeed.
 - [ ] **If `/api/tags` already lists models:** You may already have the **agent-0** baseline: **`qwen2.5:0.5b`** (pulled), **`node-0:latest`** (custom, built from **`../ollama/custom-models/node-0`**), and **`codellama:latest`** (pulled separately; not in repo). See **`../ollama/README.md`** § *What shows up in GET /api/tags*.
 - [ ] Otherwise `ollama pull <your-model>` (same tag you will use in WebUI and Open Interpreter—can be `qwen2.5:0.5b`, `node-0`, `codellama`, or a larger model from the main **README**).
-- [ ] Use repo sandbox **`environment/sandbox/`** at the **agent-0** root (created in git; add working files there). Optional: `~/BusinessSandbox` or any dedicated folder instead.
+- [ ] Create external sandbox **`~/vap-sandbox-0`** (`mkdir -p ~/vap-sandbox-0`) — **outside** **agent-0** so agent output is not mixed with the repo. (Later you may switch to using **`$HOME`** as the workspace.)
 - [ ] Add dummy files: `notes.md`, `hello.py` (optional sanity check).
 
 ---
@@ -41,7 +41,7 @@ Pick **one** path for the POC (add others later):
 
 - [ ] **A:** OrbStack (or Docker engine) running; WebUI up via `docker compose` in this folder; models visible; web search enabled if desired.
 - [ ] **B:** At least one real note/file in sandbox used in a chat.
-- [ ] **C:** From `projects/local-ai`: `python3 scripts/fetch_url.py https://example.com -o ../../environment/sandbox/page.html` (or from repo root: `-o environment/sandbox/page.html`).
+- [ ] **C:** `python3 scripts/fetch_url.py https://example.com -o ~/vap-sandbox-0/page.html` (from `projects/local-ai`).
 
 ---
 
@@ -78,7 +78,7 @@ Pick **one** path for the POC (add others later):
 docker compose up -d
 
 # Fetch URL into sandbox (stdlib only)
-python3 scripts/fetch_url.py "https://example.com" -o ../../environment/sandbox/example.html
+python3 scripts/fetch_url.py "https://example.com" -o ~/vap-sandbox-0/example.html
 ```
 
 **Linux:** If `host.docker.internal` fails, see the main **README** bridge section (host network or `172.17.0.1`).

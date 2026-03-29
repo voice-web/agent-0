@@ -16,7 +16,7 @@ docker compose up -d
 
 Open **http://localhost:3000**. Step-by-step for **OrbStack**, context checks, and **`docker compose` vs `docker-compose`**: **[DOCKER.md](DOCKER.md)** (same POC style as **`vap`** projects such as **`local-gateway-v1`**). On **Linux** Docker Engine, read **Part 2** for `host.docker.internal` vs bridge IP / host network.
 
-**URL → file (no search setup):** from repo root, `python3 projects/local-ai/scripts/fetch_url.py <url> -o environment/sandbox/page.html` (or from `projects/local-ai`, `-o ../../environment/sandbox/page.html`).
+**URL → file (no search setup):** `python3 scripts/fetch_url.py <url> -o ~/vap-sandbox-0/page.html` (run from `projects/local-ai`, or pass any absolute path).
 
 ---
 
@@ -258,16 +258,14 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 ### Recommended baseline
 
-1. **Default sandbox in this repo:** **`environment/sandbox/`** at the **agent-0** root (tracked in git via `.gitkeep`; add your working files here). You can still use another path (e.g. `~/BusinessSandbox`) if you prefer.
-2. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter. From **anywhere inside** the **agent-0** clone:
+1. **Default sandbox (outside the repo):** **`~/vap-sandbox-0`**. Create it once: `mkdir -p ~/vap-sandbox-0`. Keeping agent file work **outside** **agent-0** avoids mixing generated content with git-tracked code. For this POC the folder name is fixed; **later** you can treat **`$HOME`** as the workspace if you choose (understanding the risk footprint).
+2. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter:
 
    ```bash
-   cd "$(git rev-parse --show-toplevel)/environment/sandbox"
+   cd ~/vap-sandbox-0
    source ~/.venvs/open-interpreter/bin/activate
    interpreter --model ollama/qwen2.5:0.5b   # or node-0, codellama, llama3.1:8b, etc.
    ```
-
-   Or use the absolute path to your clone, e.g. `~/voice-web/git/agent-0/environment/sandbox`.
 
 3. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.
 
@@ -275,7 +273,7 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 ### Prompt rule (belt-and-suspenders)
 
-Tell the model explicitly: *Only read/write under this repo’s `environment/sandbox` (give the full path from `pwd -P`); refuse paths outside it.*
+Tell the model explicitly: *Only read/write under `~/vap-sandbox-0` (or expand to the absolute path); refuse paths outside it.*
 
 ---
 
@@ -299,7 +297,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 - [ ] Open WebUI shows your Ollama models and can chat.
 - [ ] Open Interpreter responds using `ollama/<model>` without cloud API keys.
 - [ ] Web search (if enabled) uses **your chosen** provider (self-hosted vs vendor).
-- [ ] Interpreter is started only from **`environment/sandbox/`** (or your chosen directory).
+- [ ] Interpreter is started only from **`~/vap-sandbox-0`** (or your chosen external directory).
 
 ---
 
