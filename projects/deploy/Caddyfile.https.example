@@ -1,0 +1,18 @@
+# Example for later: HTTPS on 443 + optional hostname (e.g. worldcliques.org).
+# Merge ideas into Caddyfile; add 443:443 and ACME_EMAIL to compose when ready.
+#
+# {
+# 	email {$ACME_EMAIL}
+# }
+#
+# worldcliques.org {
+# 	encode zstd gzip
+#
+# 	handle_path /labs/* {
+# 		reverse_proxy basic-http-labs:8080
+# 	}
+#
+# 	handle {
+# 		reverse_proxy basic-http-main:8080
+# 	}
+# }

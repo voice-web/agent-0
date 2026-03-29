@@ -1,0 +1,6 @@
+# Copy to docker-compose.override.yml (gitignored) if host port 80 is already taken.
+#
+# services:
+#   caddy:
+#     ports:
+#       - "8080:80"

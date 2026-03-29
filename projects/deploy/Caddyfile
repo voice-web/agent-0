@@ -1,0 +1,20 @@
+# HTTP on port 80 only. No hostname check — works for localhost, 127.0.0.1, or your VM IP.
+# /labs/* → basic-http-labs; everything else → basic-http-main.
+
+:80 {
+	encode zstd gzip
+
+	handle_path /labs/* {
+		reverse_proxy basic-http-labs:8080 {
+			header_up X-Route /labs
+			header_up X-Basic-Http-Instance labs
+		}
+	}
+
+	handle {
+		reverse_proxy basic-http-main:8080 {
+			header_up X-Route /
+			header_up X-Basic-Http-Instance main
+		}
+	}
+}

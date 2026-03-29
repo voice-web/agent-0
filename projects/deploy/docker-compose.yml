@@ -1,0 +1,44 @@
+# GENERATED OUTPUT: docker-compose.yml (do not edit the generated file by hand).
+# Source: this template + versions.manifest.json → run: python3 scripts/render-compose.py
+#
+# Caddy :80 → basic-http by path (/labs/* vs /). No TLS, no auth (add later).
+#   docker compose up -d
+#
+# Build pinned images: versions.manifest.json → components.*.build
+# See README.md
+
+services:
+  caddy:
+    image: "local/caddy:2.8.4"
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - basic-http-main
+      - basic-http-labs
+    restart: unless-stopped
+
+  basic-http-main:
+    image: "local/basic-http:0.0.5"
+    environment:
+      BASIC_HTTP_INSTANCE: main
+      BASIC_HTTP_PUBLIC_PATH: /
+    volumes:
+      - ./sites/main:/srv/www:ro
+    restart: unless-stopped
+
+  basic-http-labs:
+    image: "local/basic-http:0.0.5"
+    environment:
+      BASIC_HTTP_INSTANCE: labs
+      BASIC_HTTP_PUBLIC_PATH: /labs/
+    volumes:
+      - ./sites/labs:/srv/www:ro
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

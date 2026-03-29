@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "description": "Pinned images for this stack. Edit versions here, run scripts/render-compose.py, then commit the generated docker-compose.yml (or generate in CI before deploy).",
+  "components": {
+    "caddy": {
+      "image": "local/caddy:2.8.4",
+      "build": {
+        "working_directory": "projects/docker-images",
+        "command": "./scripts/build-local.sh external/caddy"
+      }
+    },
+    "basic_http": {
+      "image": "local/basic-http:0.0.5",
+      "build": {
+        "working_directory": "projects/docker-images",
+        "command": "./scripts/build-local.sh internal/basic-http"
+      }
+    }
+  }
+}
