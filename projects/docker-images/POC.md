@@ -112,13 +112,13 @@ Phased plan to implement each **image type** and prove **Caddy ingress + Keycloa
 
 ---
 
-## Phase 7 — `internal/basic-http` (deferred)
+## Phase 7 — `internal/basic-http`
 
-**Goal:** Minimal **first-party** image for health checks, smoke tests, or placeholder upstreams.
+**Goal:** Minimal **first-party** image for static sites, health checks, or stub upstreams behind Caddy.
 
-- [ ] Tiny static or FastAPI “hello” on a pinned Python or distroless base.
-- [ ] **`version.txt`** starts at **`0.0.1`**; **`CHANGELOG.md`** / **`build-local.sh`** same as other images.
-- [ ] Complete **`internal/basic-http/config.md`** (replace TBDs: port, health path, env).
+- [x] FastAPI + **`StaticFiles`** from **`/srv/www`** (**`BASIC_HTTP_ROOT`**); **`GET /health`**.
+- [x] **`version.txt`** **`0.0.1`**; **`CHANGELOG.md`**, **`config.md`**, **`Dockerfile`** with **uv** (`uv sync` in image build).
+- [ ] Optional: add **`uv.lock`** locally (`uv lock`) and switch Dockerfile to **`uv sync --frozen`** for reproducible builds.
 
 **Exit:** Used as upstream in Caddy path-routing tests when you need a controllable app.
 

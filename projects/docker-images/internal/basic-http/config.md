@@ -1,35 +1,47 @@
-# basic-http — deployment notes (template)
+# basic-http — deployment notes
 
-**Status:** Image not implemented yet. Fill this in when **`Dockerfile`** exists.
-
-Handoff for **docker compose** / ops. Image tag: **`local/basic-http:<version.txt>`** (internal semver, starting **`0.0.1`**).
+Handoff for **docker compose** / ops. Image tag: **`local/basic-http:<version.txt>`** (internal semver, currently **`0.0.1`**).
 
 ## Role
 
-Minimal first-party HTTP service (health probe, stub upstream for Caddy path tests, etc.).
+Serve **static files** (HTML, assets) from a **single directory**. Use for simple sites, stubs behind Caddy, or local experiments. Same image, **different mounts** = different sites.
+
+## Canonical mount
+
+| Container path | Host (example) | Mode |
+|----------------|----------------|------|
+| **`/srv/www`** | **`./sites/blog`** or **`~/sites/docs`** | **Read-write** for now (omit `:ro`); switch to **`:ro`** when you want immutability. |
+
+Do not mount over **`/app`** unless you know what you’re doing (application code lives there).
 
 ## Ports
 
 | Container | Notes |
 |-----------|--------|
-| _TBD_ | e.g. **8080** |
+| **8080** | HTTP. One port **per container instance**. Override with **`PORT`**. |
 
 ## Environment
 
-_TBD_ — list required and optional vars.
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| **`BASIC_HTTP_ROOT`** | **`/srv/www`** | Directory to serve (must exist and be a directory at startup). |
+| **`PORT`** | **`8080`** | Uvicorn listen port. |
 
 ## Volumes
 
-_TBD_ — usually none for a stateless stub.
+- **Required for real content:** bind-mount host site directory → **`/srv/www`**.
+- Without a mount, the image contains an **empty** **`/srv/www`** (you get 404s until you add files or mount).
 
 ## Secrets
 
-Typically **none** for a stub; document if you add auth.
+None for this service.
 
 ## Compose hints
 
-- Internal network only; reached via **`http://basic-http:<port>`** from Caddy.
+- **Service A:** `volumes: ["~/sites/a:/srv/www"]` → Caddy route **`/a/`** → `basic-http-a:8080`.
+- **Service B:** `volumes: ["~/sites/b:/srv/www"]` → another route or port.
+- **Healthcheck:** `GET http://127.0.0.1:8080/health` → **200** JSON `{"status":"ok","root":"..."}`.
 
-## Health
+## Upstream
 
-_TBD_ — e.g. **`GET /health`** → **200**.
+- [FastAPI StaticFiles](https://fastapi.tiangolo.com/tutorial/static-files/)
