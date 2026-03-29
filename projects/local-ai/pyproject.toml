@@ -7,7 +7,8 @@ package-mode = false
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.15"
+# Cap below 3.14 (3.14t / 3.14 often break wheels for open-interpreter deps). Tested with asdf **3.12.3**.
+python = ">=3.11,<3.14"
 open-interpreter = ">=0.4.3,<0.5"
 
 [build-system]

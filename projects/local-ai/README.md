@@ -222,7 +222,8 @@ poetry install
 
 **`setup-phase3-asdf.sh`** (requires **asdf** and plugins **python**, **poetry**, **ollama**):
 
-- Resolves the **latest** version each plugin advertises (`asdf latest`, with a fallback to **`asdf list all | sort -V`**).
+- Pins **standard CPython**: **latest 3.12.x** if installed (the repo’s **`.tool-versions`** uses **3.12.3**, which is known good for **`poetry install`**), otherwise **latest 3.13.x**, otherwise **`3.12.3`**. Do **not** use **3.14** or free-threaded **`*t`** builds—they often make **`poetry install`** fail (**psutil** compile errors, **tiktoken** missing wheels or a **Rust** toolchain).
+- Resolves the **latest** **poetry** and **ollama** (`asdf latest`, with a fallback to **`asdf list all | sort -V`**).
 - Writes **`projects/local-ai/.tool-versions`** and runs **`asdf install`**.
 
 Then **`poetry install`** creates the env and installs **`open-interpreter`** from **`pyproject.toml`** / **`poetry.lock`**. Requires **Poetry 1.2+** for **`-C`** (project directory); upgrade via asdf after **`setup-phase3-asdf.sh`**.

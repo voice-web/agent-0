@@ -12,7 +12,7 @@
 
 - [ ] **External information:** Web search (Open WebUI) **or** saved page text via `scripts/fetch_url.py` into the sandbox.
 - [ ] **One local model:** Same Ollama model for research UI and Open Interpreter (e.g. `llama3.1:8b` or `gemma2:9b`).
-- [ ] **Filesystem actions:** Open Interpreter creates/edits files **only** under your sandbox; **no** auto-run until you trust the flow.
+- [ ] **Local actions (sandbox):** Files/shell only under **`~/vap-sandbox-0`** (or a path you explicitly allow)—via **Phase 4** (WebUI → tools/API) **and/or** **Phase 3** (Interpreter). **No** silent auto-run until you trust the flow.
 
 ---
 
@@ -23,7 +23,7 @@ Nothing in this phase is optional. Finish everything here before Phase 2.
 - [ ] **Ollama CLI:** `ollama --version` runs (you may see MLX warnings on stderr; **`./scripts/start-poc.sh`** starts **`ollama serve`** via **`scripts/ollama-serve-bg.sh`** when the macOS app is missing).
 - [ ] **Ollama API:** `curl -s http://127.0.0.1:11434/api/tags` returns **HTTP 200** and JSON with at least one **`models`** entry.
 - [ ] **Models:** Pull or build what you need for WebUI + Interpreter (e.g. **`qwen2.5:0.5b`**, **`codellama`**). Custom **`node-0`**: **`ollama create node-0 -f reference/modelfiles/node-0`** (after **`ollama pull qwen2.5:0.5b`**). **`GET /api/tags`** lists whatever you have pulled or created.
-- [ ] **asdf (if you use it):** **`./scripts/setup-phase3-asdf.sh`** writes **`.tool-versions`** in this folder (python / poetry / ollama); run **`asdf install`** from here so the CLI is consistent.
+- [ ] **asdf (if you use it):** **`./scripts/setup-phase3-asdf.sh`** writes **`.tool-versions`** in this folder (python / poetry / ollama); run **`asdf install`** from here. Use **standard CPython 3.12.x** (repo pins **3.12.3**) for **`poetry install`**—avoid **3.14** and **`*t`** (free-threaded) builds.
 - [ ] **Sandbox directory:** **`~/vap-sandbox-0`** exists (`mkdir -p ~/vap-sandbox-0`) — **outside** this project tree. (Later you may widen scope to **`$HOME`**.)
 
 ### Starter files in the sandbox (required)
@@ -68,12 +68,18 @@ Pick **one** path for the POC (add others later):
 - [ ] **B:** At least one real note/file in sandbox used in a chat.
 - [ ] **C:** `python3 scripts/fetch_url.py https://example.com -o ~/vap-sandbox-0/page.html` (from `projects/local-ai`).
 
+### Host Ollama (for WebUI)
+
+Compose should point **`OLLAMA_BASE_URL`** at **host** Ollama (e.g. **`http://host.docker.internal:11434`** on macOS OrbStack). **No** second Ollama service in **`docker-compose.yml`**. If models in WebUI match **`ollama list`** on the host, this is already correct.
+
 ---
 
-## Phase 3 — Action leg (Open Interpreter)
+## Phase 3 — Action leg (Open Interpreter) — **optional**
+
+Use this **or** focus on **Phase 4** for “do things on disk” from the browser.
 
 - [ ] **asdf:** Plugins **python**, **poetry**, and **ollama** installed (`asdf plugin list`).
-- [ ] From **`projects/local-ai`**: **`./scripts/setup-phase3-asdf.sh`** — writes **`.tool-versions`** with latest **python** / **poetry** / **ollama** and runs **`asdf install`**.
+- [ ] From **`projects/local-ai`**: **`./scripts/setup-phase3-asdf.sh`** — writes **`.tool-versions`** (**python** prefers **3.12.x**, then **3.13.x**; plus **poetry** / **ollama**) and runs **`asdf install`**.
 - [ ] **`poetry install`** — installs **`open-interpreter`** from **`pyproject.toml`** / **`poetry.lock`**.
 - [ ] **`cd` into `~/vap-sandbox-0`** → **`poetry -C /path/to/local-ai run interpreter --model ollama/<same-model-as-ollama-pull>`** (Poetry **1.2+**; use the absolute path to **this** folder).
 - [ ] Single scripted task works (e.g. “add a function to `hello.py` and update `notes.md`”).
@@ -81,11 +87,25 @@ Pick **one** path for the POC (add others later):
 
 ---
 
-## Phase 4 — Bridge
+## Phase 4 — Tooling / API integrations (local orchestration from WebUI)
 
-- [ ] Open WebUI container uses `OLLAMA_BASE_URL` → host Ollama (see `docker-compose.yml`; macOS OrbStack uses `host.docker.internal:11434`).
-- [ ] Interpreter uses default local Ollama (`http://localhost:11434`).
-- [ ] No duplicate Ollama inside the WebUI container.
+**Goal:** From **Open WebUI**, the model can **trigger real actions on your machine** (e.g. list a directory under your sandbox), and the **chat shows both** the tool call and the **result**—not just a text guess. Vanilla chat + Ollama does **not** see your disk; this phase is the **glue** (tools, functions, or a small local API) you implement.
+
+**Yes, it is possible** with extra setup. Typical shape:
+
+1. **Allow-listed operations** — e.g. `list_dir`, `read_file`, `write_file` restricted to **`~/vap-sandbox-0`** (or another fixed root). Avoid arbitrary shell unless you add explicit confirmation.
+2. **Local executor service** — small **HTTP API on the host** (e.g. FastAPI/Flask) that performs those operations. Open WebUI (in Docker) calls **`http://host.docker.internal:<port>/...`** (macOS) or your LAN IP on Linux.
+3. **Wire WebUI to the API** — use your Open WebUI version’s **Tools / Functions / OpenAPI actions** (names change by release) so the model can invoke those endpoints; follow current **Open WebUI** docs for your image tag.
+4. **Model behavior** — tool-capable models and prompts/templates that actually **emit tool calls** your integration understands (small models often struggle; expect iteration).
+
+**Checklist**
+
+- [ ] Write down **allowed actions** and **root directory** (start with sandbox only).
+- [ ] Implement the **local executor** in this repo (e.g. under **`scripts/`** or a new **`executor/`** package) with **auth** (shared secret header) and **input validation** (no `..`, no paths outside root).
+- [ ] Expose it on a fixed **port**; document how Docker reaches the host (**`host.docker.internal`** vs Linux).
+- [ ] Register the tool/OpenAPI integration in **Open WebUI** admin and test with **curl** before relying on the model.
+- [ ] **End-to-end:** From WebUI, a prompt like “list files in my sandbox” results in an **executed** action and the **listing** (or clear error) in the thread.
+- [ ] **Hardening:** Rate limits, logging, and a policy for **write/execute** vs read-only until you trust the loop.
 
 ---
 
@@ -126,6 +146,6 @@ On a **new machine**, you should eventually be able to run something like **one 
 2. **Verifies after each step** — same idea as **`scripts/verify-phase1.sh`**: exit non-zero with a clear message so you never assume a silent failure.
 3. **Stays idempotent where possible** — safe to re-run; skip or no-op when already satisfied.
 
-Today, **`verify-phase1.sh`** is the first verify hook; **`start-poc.sh`** / **`stop-poc.sh`** automate **Phase 2**; **`setup-phase3-asdf.sh`** pins asdf runtimes for **Phase 3**. Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
+Today, **`verify-phase1.sh`** is the first verify hook; **`start-poc.sh`** / **`stop-poc.sh`** automate **Phase 2**; **`setup-phase3-asdf.sh`** pins asdf runtimes for **Phase 3**. Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, **`verify-phase4.sh`** (local executor reachable + optional tool smoke), … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
 
 When you add automation, link the entrypoint here and keep **manual** steps documented for debugging.

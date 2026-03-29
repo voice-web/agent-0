@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Phase 3 — pin latest asdf versions for python, poetry, ollama in projects/local-ai/.tool-versions
-# and run `asdf install`. Then you run: poetry install
+# Phase 3 — pin asdf versions for python (prefer 3.12.x), poetry, ollama in projects/local-ai/.tool-versions
+# and run `asdf install`. Then you run: poetry install (use standard CPython, not 3.14t).
 #
 # Prerequisites: asdf installed; plugins: python, poetry, ollama
 #   asdf plugin add python https://github.com/asdf-community/asdf-python.git
@@ -67,12 +67,31 @@ resolve_latest() {
   exit 1
 }
 
-PY="$(resolve_latest python)"
+# Avoid 3.14+ and free-threaded (*t): those builds often break `poetry install` for open-interpreter
+# (psutil C API, tiktoken wheels / Rust). Prefer latest **3.12.x**; else latest **3.13.x**; else 3.12.3.
+resolve_python_for_local_ai() {
+  local v
+  v="$(asdf list all python 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+    grep -E '^3\.12\.[0-9]+$' | sort -V | tail -n1)"
+  if [[ -n "$v" ]]; then
+    echo "$v"
+    return 0
+  fi
+  v="$(asdf list all python 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+    grep -E '^3\.13\.[0-9]+$' | sort -V | tail -n1)"
+  if [[ -n "$v" ]]; then
+    echo "$v"
+    return 0
+  fi
+  echo "3.12.3"
+}
+
+PY="$(resolve_python_for_local_ai)"
 POETRY="$(resolve_latest poetry)"
 OLLAMA="$(resolve_latest ollama)"
 
 echo "==> local-ai Phase 3 — writing ${ROOT}/.tool-versions"
-echo "    python  ${PY}"
+echo "    python  ${PY}  (3.12.x preferred; 3.13.x ok; not 3.14 / *t — see script comments)"
 echo "    poetry  ${POETRY}"
 echo "    ollama  ${OLLAMA}"
 
