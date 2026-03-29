@@ -4,6 +4,8 @@
 
 **Canonical repo:** `agent-0` → `projects/local-ai/`.
 
+**Docker POC (macOS):** Use **OrbStack** + **`docker compose`** like other voice-web projects (see **`DOCKER.md`**).
+
 ---
 
 ## Definition of done (POC)
@@ -35,7 +37,7 @@ Pick **one** path for the POC (add others later):
 | **B. Manual** | Fastest: copy/paste or download into sandbox, chat in WebUI over files. |
 | **C. `scripts/fetch_url.py`** | Fetch a URL to a text file in the sandbox, then point the model at that file. |
 
-- [ ] **A:** Docker WebUI up (`docker compose` in this folder); models visible; web search enabled if desired.
+- [ ] **A:** OrbStack (or Docker engine) running; WebUI up via `docker compose` in this folder; models visible; web search enabled if desired.
 - [ ] **B:** At least one real note/file in sandbox used in a chat.
 - [ ] **C:** Run `python3 scripts/fetch_url.py https://example.com -o ~/BusinessSandbox/page.html` (or similar).
 
@@ -52,7 +54,7 @@ Pick **one** path for the POC (add others later):
 
 ## Phase 4 — Bridge
 
-- [ ] Open WebUI container uses `OLLAMA_BASE_URL` → host Ollama (see `docker-compose.yml` on macOS/Windows).
+- [ ] Open WebUI container uses `OLLAMA_BASE_URL` → host Ollama (see `docker-compose.yml`; macOS OrbStack uses `host.docker.internal:11434`).
 - [ ] Interpreter uses default local Ollama (`http://localhost:11434`).
 - [ ] No duplicate Ollama inside the WebUI container.
 
@@ -70,7 +72,7 @@ Pick **one** path for the POC (add others later):
 ## Quick commands (from this directory)
 
 ```bash
-# WebUI (host Ollama on Docker Desktop macOS/Windows)
+# WebUI — OrbStack on macOS (or Docker Desktop); Ollama on host :11434
 docker compose up -d
 
 # Fetch URL into sandbox (stdlib only)

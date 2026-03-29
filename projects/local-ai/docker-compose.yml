@@ -1,6 +1,10 @@
-# Open WebUI → Ollama on the Docker host (macOS / Windows Docker Desktop).
-# Requires Ollama running on the host at port 11434.
-# Linux: see README — you may need --network host or OLLAMA_BASE_URL=http://172.17.0.1:11434 instead.
+# Open WebUI → Ollama on the host. POC via `docker compose up -d` (same idea as vap/local-gateway-v1).
+#
+# macOS: OrbStack (recommended) or Docker Desktop — keep the app running; `host.docker.internal` → host.
+# Windows: Docker Desktop — same compose file pattern.
+# Linux: host.docker.internal may be missing — see README.md Part 2 (host network or 172.17.0.1).
+#
+# Prerequisite: Ollama listening on the host at port 11434 (not inside this stack).
 
 services:
   open-webui:

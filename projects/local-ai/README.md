@@ -8,13 +8,13 @@ Private, local AI workstation: **research** (Open WebUI + RAG + web search), **a
 
 **Ollama:** If you already installed Ollama and pulled models on this machine, treat **Part 1** as verification only and start from **POC.md** Phase 2–3 or **Part 2** below.
 
-**Quick start (WebUI + host Ollama):** From this directory, with Ollama running on the host:
+**Quick start (WebUI + host Ollama):** On **macOS**, run **OrbStack**, start **Ollama** on the host, then from this directory:
 
 ```bash
 docker compose up -d
 ```
 
-Then open **http://localhost:3000**. For Linux Docker Engine, read the **Part 2** note on `host.docker.internal` vs bridge IP / host network.
+Open **http://localhost:3000**. Step-by-step for **OrbStack**, context checks, and **`docker compose` vs `docker-compose`**: **[DOCKER.md](DOCKER.md)** (same POC style as **`vap`** projects such as **`local-gateway-v1`**). On **Linux** Docker Engine, read **Part 2** for `host.docker.internal` vs bridge IP / host network.
 
 **URL → file (no search setup):** `python3 scripts/fetch_url.py <url> -o ~/BusinessSandbox/page.html`
 
@@ -104,21 +104,29 @@ ollama pull llama3.1:8b
 
 ---
 
-## Part 2 — Research hub: Open WebUI (Docker)
+## Part 2 — Research hub: Open WebUI (Docker / Compose)
 
 Open WebUI needs to reach Ollama on the **host**. The usual pattern is `OLLAMA_BASE_URL` pointing at the host from inside the container.
 
-### Compose (recommended in this repo)
+### macOS POC: OrbStack + Compose (recommended)
 
-From `projects/local-ai/`:
+1. Start **OrbStack** and confirm **`docker info`** works — see **[DOCKER.md](DOCKER.md)**.
+2. Run **Ollama** on the Mac (host), not inside the WebUI container.
+3. From `projects/local-ai/`:
 
 ```bash
 docker compose up -d
 ```
 
-This uses **`docker-compose.yml`** (`OLLAMA_BASE_URL=http://host.docker.internal:11434`, port **3000**). Open **http://localhost:3000**, create the **first** admin account, then sign in.
+This uses **`docker-compose.yml`**: `OLLAMA_BASE_URL=http://host.docker.internal:11434`, port **3000** on the host. OrbStack resolves **`host.docker.internal`** to your Mac like Docker Desktop.
 
-### macOS and Windows (Docker Desktop) — `docker run`
+Open **http://localhost:3000**, create the **first** admin account, then sign in.
+
+### Compose without OrbStack
+
+**Docker Desktop** (macOS/Windows) or another engine that supports **`host.docker.internal`**: same **`docker compose up -d`** and the same compose file usually work. **Linux:** see below; you may need a different `OLLAMA_BASE_URL` or network mode.
+
+### Alternative — `docker run` (OrbStack / Docker Desktop)
 
 `host.docker.internal` resolves to the host. **Include** `--add-host` (or `extra_hosts` in Compose) so the container can reach it.
 
@@ -234,7 +242,7 @@ Follow prompts to select **Ollama** and the model name that matches what you pul
 | Client | Where it runs | Ollama URL you configure |
 |--------|----------------|---------------------------|
 | **Ollama** | Host | `http://127.0.0.1:11434` (default) |
-| **Open WebUI** | Docker container | `http://host.docker.internal:11434` (macOS/Win) or `http://127.0.0.1:11434` / `http://172.17.0.1:11434` (Linux—see above) |
+| **Open WebUI** | Docker container | `http://host.docker.internal:11434` (macOS **OrbStack** / Docker Desktop, Windows) or `http://127.0.0.1:11434` / `http://172.17.0.1:11434` (Linux—see above) |
 | **Open Interpreter** | Host (venv) | Default `http://localhost:11434` when using `ollama/...` |
 
 **Rules of thumb:**
@@ -285,6 +293,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 
 ## Quick verification checklist
 
+- [ ] **macOS:** OrbStack is running and `docker info` succeeds (`docker context` → **orbstack** if applicable).
 - [ ] `curl http://127.0.0.1:11434/api/tags` returns JSON on the host.
 - [ ] Open WebUI shows your Ollama models and can chat.
 - [ ] Open Interpreter responds using `ollama/<model>` without cloud API keys.
@@ -295,7 +304,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 
 ## Troubleshooting
 
-- **WebUI cannot see Ollama:** wrong `OLLAMA_BASE_URL`, missing `--add-host=host.docker.internal:host-gateway` (macOS/Windows), or on Linux wrong bridge IP—fix and recreate the container.
+- **WebUI cannot see Ollama:** OrbStack or Docker engine not running; wrong `docker context`; wrong `OLLAMA_BASE_URL`; missing `extra_hosts` / `--add-host=host.docker.internal:host-gateway` in compose (this repo includes it); or on Linux wrong bridge IP—fix and `docker compose up -d --force-recreate` (or `docker compose down` then `up -d`).
 - **Model not found:** run `ollama pull <name>` on the **host**; names must match in WebUI and Interpreter.
 - **Out of memory:** smaller model, smaller context in WebUI/Interpreter, or close other GPU apps.
 
@@ -303,6 +312,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 
 ## References
 
+- [OrbStack](https://orbstack.dev/) — Docker engine on macOS (POC with **`docker compose`** in this folder).
 - [Ollama](https://ollama.com/) — install, models, API.
 - [Open WebUI](https://github.com/open-webui/open-webui) — Docker, env vars, docs.
 - [Open Interpreter](https://docs.openinterpreter.com/) — local / Ollama, safety, settings.
