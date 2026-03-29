@@ -8,7 +8,15 @@ Private, local AI workstation: **research** (Open WebUI + RAG + web search), **a
 
 **Ollama:** If you already installed Ollama and pulled models on this machine, treat **Part 1** as verification only and start from **POC.md** Phase 2–3 or **Part 2** below.
 
-**Quick start (WebUI + host Ollama):** On **macOS**, run **OrbStack**, start **Ollama** on the host, then from this directory:
+**Quick start (WebUI + host Ollama):** On **macOS**, from this directory you can run everything in one step:
+
+```bash
+./scripts/start-poc.sh
+```
+
+That ensures **OrbStack** + **Ollama** + **`docker compose up -d`**. Stop the WebUI stack only with **`./scripts/stop-poc.sh`**. Details: **[DOCKER.md](DOCKER.md)**.
+
+Or start pieces manually: **OrbStack** → **Ollama** on the host →
 
 ```bash
 docker compose up -d
@@ -109,6 +117,10 @@ ollama pull llama3.1:8b
 Open WebUI needs to reach Ollama on the **host**. The usual pattern is `OLLAMA_BASE_URL` pointing at the host from inside the container.
 
 ### macOS POC: OrbStack + Compose (recommended)
+
+**One command:** **`./scripts/start-poc.sh`** (from `projects/local-ai/`) starts **OrbStack** and **Ollama** if needed, then **`docker compose up -d`**. **`./scripts/stop-poc.sh`** stops only the compose stack.
+
+**Manual sequence:**
 
 1. Start **OrbStack** and confirm **`docker info`** works — see **[DOCKER.md](DOCKER.md)**.
 2. Run **Ollama** on the Mac (host), not inside the WebUI container.

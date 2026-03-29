@@ -50,6 +50,11 @@ Exits **0** only if: Ollama responds, `/api/tags` lists at least one model, and 
 
 ## Phase 2 — Research leg (“read from the internet”)
 
+### Bring up WebUI (Docker + Ollama)
+
+- [ ] From **`projects/local-ai`**: **`./scripts/start-poc.sh`** — starts **OrbStack** / **Docker** and **Ollama** if they are not already up, then **`docker compose up -d`**. Stop the stack with **`./scripts/stop-poc.sh`** (Ollama/OrbStack keep running). See **`DOCKER.md`** for env overrides (`LOCAL_AI_SKIP_ORB_START`, etc.).
+- [ ] Or start **OrbStack** + **Ollama** yourself, then **`docker compose up -d`** in this folder.
+
 Pick **one** path for the POC (add others later):
 
 | Path | When to use |
@@ -58,7 +63,7 @@ Pick **one** path for the POC (add others later):
 | **B. Manual** | Fastest: copy/paste or download into sandbox, chat in WebUI over files. |
 | **C. `scripts/fetch_url.py`** | Fetch a URL to a text file in the sandbox, then point the model at that file. |
 
-- [ ] **A:** OrbStack (or Docker engine) running; WebUI up via `docker compose` in this folder; models visible; web search enabled if desired.
+- [ ] **A:** WebUI reachable at **http://localhost:3000**; models visible; web search enabled if desired.
 - [ ] **B:** At least one real note/file in sandbox used in a chat.
 - [ ] **C:** `python3 scripts/fetch_url.py https://example.com -o ~/vap-sandbox-0/page.html` (from `projects/local-ai`).
 
@@ -93,7 +98,11 @@ Pick **one** path for the POC (add others later):
 ## Quick commands (from this directory)
 
 ```bash
-# WebUI — OrbStack on macOS (or Docker Desktop); Ollama on host :11434
+# Phase 2 — OrbStack + Ollama + compose (macOS-friendly)
+./scripts/start-poc.sh
+./scripts/stop-poc.sh
+
+# WebUI only (if Docker + Ollama already running)
 docker compose up -d
 
 # Fetch URL into sandbox (stdlib only)
@@ -114,6 +123,6 @@ On a **new machine**, you should eventually be able to run something like **one 
 2. **Verifies after each step** — same idea as **`scripts/verify-phase1.sh`**: exit non-zero with a clear message so you never assume a silent failure.
 3. **Stays idempotent where possible** — safe to re-run; skip or no-op when already satisfied.
 
-Today, **`verify-phase1.sh`** is the first example of that pattern. Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
+Today, **`verify-phase1.sh`** is the first verify hook; **`start-poc.sh`** / **`stop-poc.sh`** automate **Phase 2** bring-up/teardown (compose stack). Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
 
 When you add automation, link the entrypoint here and keep **manual** steps documented for debugging.

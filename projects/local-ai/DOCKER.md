@@ -34,6 +34,32 @@ curl -s http://127.0.0.1:11434/api/tags
 
 ## 3. Compose: start Open WebUI
 
+### Scripted (Phase 2) — recommended on macOS
+
+From **`projects/local-ai/`**:
+
+```bash
+./scripts/start-poc.sh
+```
+
+This tries to start **OrbStack** (`orb start` or `open -a OrbStack`) and the **Ollama** app if needed, waits until **Docker** and **`/api/tags`** respond, then runs **`docker compose up -d`**.
+
+```bash
+./scripts/stop-poc.sh
+```
+
+Stops only the **compose** stack (**`docker compose down`**). **Ollama** and **OrbStack** stay running.
+
+**Environment (optional):**
+
+| Variable | Effect |
+|----------|--------|
+| `LOCAL_AI_SKIP_ORB_START=1` | Do not try to launch OrbStack; fail if Docker is down. |
+| `LOCAL_AI_SKIP_OLLAMA_START=1` | Do not try to open the Ollama app; fail if Ollama is down. |
+| `LOCAL_AI_WEBUI_PORT=3000` | Port check base URL (default **3000**). |
+
+### Manual
+
 From **`projects/local-ai/`** (this folder):
 
 ```bash
