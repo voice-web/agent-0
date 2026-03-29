@@ -87,7 +87,9 @@ Use this **or** focus on **Phase 4** for “do things on disk” from the browse
 
 ---
 
-## Phase 4 — Tooling / API integrations (local orchestration from WebUI)
+## Phase 4 — Tooling / API integrations (local orchestration from Open WebUI)
+
+**Detailed plan (resume here):** **[docs/phase-4-plan.md](docs/phase-4-plan.md)**
 
 **Goal:** From **Open WebUI**, the model can **trigger real actions on your machine** (e.g. list a directory under your sandbox), and the **chat shows both** the tool call and the **result**—not just a text guess. Vanilla chat + Ollama does **not** see your disk; this phase is the **glue** (tools, functions, or a small local API) you implement.
 
