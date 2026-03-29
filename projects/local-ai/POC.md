@@ -16,16 +16,35 @@
 
 ---
 
-## Phase 1 — Baseline (Ollama)
+## Phase 1 — Baseline (Ollama) — **all required**
 
-Skip or verify if you already did this on this machine.
+Nothing in this phase is optional. Finish everything here before Phase 2.
 
-- [ ] **asdf (optional):** Repo root **`.tool-versions`** and **`projects/ollama/.tool-versions`** pin **`ollama 0.17.0`** so `asdf install` / `asdf local` match the CLI you use.
-- [ ] `ollama --version` and `curl -s http://127.0.0.1:11434/api/tags` succeed.
-- [ ] **If `/api/tags` already lists models:** You may already have the **agent-0** baseline: **`qwen2.5:0.5b`** (pulled), **`node-0:latest`** (custom, built from **`../ollama/custom-models/node-0`**), and **`codellama:latest`** (pulled separately; not in repo). See **`../ollama/README.md`** § *What shows up in GET /api/tags*.
-- [ ] Otherwise `ollama pull <your-model>` (same tag you will use in WebUI and Open Interpreter—can be `qwen2.5:0.5b`, `node-0`, `codellama`, or a larger model from the main **README**).
-- [ ] Create external sandbox **`~/vap-sandbox-0`** (`mkdir -p ~/vap-sandbox-0`) — **outside** **agent-0** so agent output is not mixed with the repo. (Later you may switch to using **`$HOME`** as the workspace.)
-- [ ] Add dummy files: `notes.md`, `hello.py` (optional sanity check).
+- [ ] **Ollama CLI:** `ollama --version` runs (you may see MLX warnings on stderr; see **`../ollama/scripts/ollama-bg`** if you run the server from a script).
+- [ ] **Ollama API:** `curl -s http://127.0.0.1:11434/api/tags` returns **HTTP 200** and JSON with at least one **`models`** entry.
+- [ ] **Models:** Pull or build what you need for WebUI + Interpreter (e.g. **`qwen2.5:0.5b`**, **`node-0`** from **`../ollama/custom-models/node-0`**, **`codellama`**). See **`../ollama/README.md`** § *What shows up in GET /api/tags*.
+- [ ] **asdf (if you use it):** Repo root and **`projects/ollama/.tool-versions`** pin **`ollama 0.17.0`** so the CLI matches.
+- [ ] **Sandbox directory:** **`~/vap-sandbox-0`** exists (`mkdir -p ~/vap-sandbox-0`) — **outside** **agent-0**. (Later you may widen scope to **`$HOME`**.)
+
+### Starter files in the sandbox (required)
+
+- [ ] **`~/vap-sandbox-0/notes.md`** and **`~/vap-sandbox-0/hello.py`** exist. Canonical copies are in **`sandbox-starters/`** in this folder:
+
+```bash
+cp sandbox-starters/notes.md sandbox-starters/hello.py ~/vap-sandbox-0/
+```
+
+### Verify Phase 1
+
+From **`projects/local-ai`**:
+
+```bash
+./scripts/verify-phase1.sh
+```
+
+Exits **0** only if: Ollama responds, `/api/tags` lists at least one model, and **`~/vap-sandbox-0`** contains **`notes.md`** and **`hello.py`**.
+
+**Status (reference machine, 2026-03-29):** Phase 1 verified with **`./scripts/verify-phase1.sh`**.
 
 ---
 

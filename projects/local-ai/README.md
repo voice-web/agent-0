@@ -259,7 +259,8 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 ### Recommended baseline
 
 1. **Default sandbox (outside the repo):** **`~/vap-sandbox-0`**. Create it once: `mkdir -p ~/vap-sandbox-0`. Keeping agent file work **outside** **agent-0** avoids mixing generated content with git-tracked code. For this POC the folder name is fixed; **later** you can treat **`$HOME`** as the workspace if you choose (understanding the risk footprint).
-2. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter:
+2. **Starter files (Phase 1):** Copy **`sandbox-starters/notes.md`** and **`sandbox-starters/hello.py`** into **`~/vap-sandbox-0/`** (or match their contents). They are for Interpreter smoke tests. Confirm with **`./scripts/verify-phase1.sh`** from this directory.
+3. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter:
 
    ```bash
    cd ~/vap-sandbox-0
@@ -267,9 +268,9 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
    interpreter --model ollama/qwen2.5:0.5b   # or node-0, codellama, llama3.1:8b, etc.
    ```
 
-3. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.
+4. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.
 
-4. **Optional stronger isolation:** run Open Interpreter inside **Docker** with **only** that directory bind-mounted as `/workspace`, and use Open Interpreter’s **sandbox / Docker** documentation for your version ([safety docs](https://docs.openinterpreter.com/safety/introduction)).
+5. **Optional stronger isolation:** run Open Interpreter inside **Docker** with **only** that directory bind-mounted as `/workspace`, and use Open Interpreter’s **sandbox / Docker** documentation for your version ([safety docs](https://docs.openinterpreter.com/safety/introduction)).
 
 ### Prompt rule (belt-and-suspenders)
 
@@ -292,6 +293,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 
 ## Quick verification checklist
 
+- [ ] **Phase 1:** `./scripts/verify-phase1.sh` exits **0** (Ollama + **`~/vap-sandbox-0`** with **`notes.md`** / **`hello.py`** from **`sandbox-starters/`**).
 - [ ] **macOS:** OrbStack is running and `docker info` succeeds (`docker context` → **orbstack** if applicable).
 - [ ] `curl http://127.0.0.1:11434/api/tags` returns JSON on the host.
 - [ ] Open WebUI shows your Ollama models and can chat.
