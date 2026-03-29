@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Start Ollama in the background. Logs to ollama.log in the current directory.
+
+# Same OLLAMA_LLM_LIBRARY is set in ~/.zshrc so ollama list / ollama ps (and other CLI
+# commands) don't print the MLX error; they don't run the server but the binary still
+# probes MLX. Here we set it for the server process when started from this script.
+export OLLAMA_LLM_LIBRARY="${OLLAMA_LLM_LIBRARY:-cpu_avx2}"
+
+nohup ollama serve > ollama.log 2>&1 &
+echo "Ollama started in background (PID $!). Log: $(pwd)/ollama.log"

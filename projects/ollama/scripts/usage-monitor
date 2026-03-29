@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""
+One-shot usage check: if memory or CPU is above threshold, publish a message.
+Designed to be run by launchd every N seconds (e.g. 60). Uses same lightweight
+sources as system-resources (sysctl, vm_stat, one top snapshot).
+
+Publish = macOS notification by default. Set USAGE_MONITOR_PUBLISH=log to append
+to a log file instead, or add your own (e.g. webhook) in the script.
+
+Config via env (or edit defaults below):
+  USAGE_MONITOR_MEM_PCT   memory used % threshold (default 90)
+  USAGE_MONITOR_CPU_PCT   CPU used % threshold (default 95)
+  USAGE_MONITOR_LOG       path to log file when PUBLISH=log (default ~/Library/Logs/usage-monitor.log)
+  USAGE_MONITOR_PUBLISH   notify | log (default notify)
+"""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+_PAGE_SIZE = 4096
+_DEFAULT_MEM_PCT = 90
+_DEFAULT_CPU_PCT = 95
+
+
+def _sysctl(key):
+    try:
+        r = subprocess.run(
+            ["sysctl", "-n", key],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        return r.stdout.strip() if r.returncode == 0 and r.stdout else None
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _vm_stat():
+    try:
+        r = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=2)
+        if r.returncode != 0 or not r.stdout:
+            return None
+        out = {}
+        for line in r.stdout.strip().splitlines():
+            parts = line.split(":")
+            if len(parts) >= 2 and parts[1].strip().isdigit():
+                key = parts[0].strip().replace(" ", "_").lower()
+                out[key] = int(parts[1].strip())
+        return out
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _top_idle():
+    try:
+        r = subprocess.run(
+            ["top", "-l", "1", "-s", "0", "-n", "0"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if r.returncode != 0 or not r.stdout:
+            return None
+        import re
+        m = re.search(r"([\d.]+)%\s*id", r.stdout)
+        return (100.0 - float(m.group(1))) if m else None
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _notify(title, body):
+    subprocess.run(
+        ["osascript", "-e", f'display notification "{body}" with title "{title}"'],
+        capture_output=True,
+        timeout=5,
+    )
+
+
+def _log_message(path, msg):
+    path = Path(path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(msg + "\n")
+
+
+def main():
+    mem_pct_thresh = float(os.environ.get("USAGE_MONITOR_MEM_PCT", _DEFAULT_MEM_PCT))
+    cpu_pct_thresh = float(os.environ.get("USAGE_MONITOR_CPU_PCT", _DEFAULT_CPU_PCT))
+    publish = (os.environ.get("USAGE_MONITOR_PUBLISH") or "notify").lower()
+    log_path = os.environ.get("USAGE_MONITOR_LOG") or str(Path.home() / "Library/Logs/usage-monitor.log")
+
+    total_bytes = None
+    s = _sysctl("hw.memsize")
+    if s and s.isdigit():
+        total_bytes = int(s)
+    vm = _vm_stat()
+    mem_used_pct = None
+    if total_bytes and vm and "pages_free" in vm:
+        free = vm["pages_free"] * _PAGE_SIZE
+        mem_used_pct = (total_bytes - free) / total_bytes * 100
+
+    cpu_used_pct = _top_idle()
+
+    alerts = []
+    if mem_used_pct is not None and mem_used_pct >= mem_pct_thresh:
+        alerts.append(f"Memory {mem_used_pct:.1f}% (threshold {mem_pct_thresh:.0f}%)")
+    if cpu_used_pct is not None and cpu_used_pct >= cpu_pct_thresh:
+        alerts.append(f"CPU {cpu_used_pct:.1f}% (threshold {cpu_pct_thresh:.0f}%)")
+
+    if not alerts:
+        return 0
+
+    msg = " | ".join(alerts)
+    if publish == "log":
+        _log_message(log_path, msg)
+    else:
+        _notify("Usage monitor", msg)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

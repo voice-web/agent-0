@@ -2,7 +2,7 @@
 
 Private, local AI workstation: **research** (Open WebUI + RAG + web search), **action** (Open Interpreter + local files/code), and a **single local model host** (Ollama). Goal: iterate on a business idea **without sending prompts or documents to the cloud**.
 
-**Repository:** This project lives under **`agent-0`** at `projects/local-ai/`. It was removed from the **`vap`** repo to keep all implementation and POC work here.
+**Repository:** This project lives under **`agent-0`** at `projects/local-ai/`. It was removed from the **`vap`** repo to keep all implementation and POC work here. Older notes and host scripts live next door in **`../ollama/`** (reference bundle).
 
 **POC roadmap:** Step-by-step phases, checkboxes, and definition of done → **[POC.md](POC.md)**.
 

@@ -1,0 +1,580 @@
+#!/usr/bin/env python3
+"""
+Lightweight CLI for system resource info (macOS).
+Uses single sysctl/vm_stat/top/ps snapshots to avoid impacting the system.
+
+Usage (one-shot):
+  system-resources show info
+  system-resources show used
+  system-resources show top [N] cpu
+  system-resources show top [N] memory
+  system-resources show pid <PID>
+
+Interactive: run with no args for readline REPL with history and tab-complete.
+"""
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    import readline
+    _readline_available = True
+except ImportError:
+    _readline_available = False
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PAGE_SIZE = 4096
+_DEFAULT_TOP_N = 5
+
+
+# -----------------------------------------------------------------------------
+# Data gathering (one-shot, minimal impact)
+def _sysctl(*keys):
+    """Return value(s) from sysctl -n KEY; keys as list -> dict of key->value (string)."""
+    result = {}
+    for key in keys:
+        try:
+            out = subprocess.run(
+                ["sysctl", "-n", key],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if out.returncode == 0 and out.stdout:
+                result[key] = out.stdout.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+            pass
+    return result
+
+
+def _vm_stat():
+    """Parse vm_stat; return dict with page counts (int) and page_size."""
+    try:
+        out = subprocess.run(
+            ["vm_stat"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode != 0 or not out.stdout:
+            return None
+        stats = {}
+        for line in out.stdout.strip().splitlines():
+            m = re.match(r"^\s*([\w\s]+)\s*:\s*(\d+)", line)
+            if m:
+                key = m.group(1).strip().replace(" ", "_").lower()
+                stats[key] = int(m.group(2))
+        stats["page_size"] = _PAGE_SIZE
+        return stats
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _top_cpu_idle():
+    """One snapshot of top; return (idle_pct, user, sys) or (None, None, None)."""
+    try:
+        out = subprocess.run(
+            ["top", "-l", "1", "-s", "0", "-n", "0"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if out.returncode != 0 or not out.stdout:
+            return None, None, None
+        # CPU usage: 5.0% user, 4.5% sy, ... 89.2% id ...
+        m = re.search(r"CPU usage:\s*([\d.]+)%\s*user,\s*([\d.]+)%\s*sy[^,]*,([^)]+)\)", out.stdout)
+        if m:
+            user = float(m.group(1))
+            sys_ = float(m.group(2))
+            rest = m.group(3)
+            id_m = re.search(r"([\d.]+)%\s*id", rest)
+            idle = float(id_m.group(1)) if id_m else 0.0
+            return idle, user, sys_
+        return None, None, None
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None, None, None
+
+
+def _ps_all_cpu_mem():
+    """One ps for all processes; return list of (pid, pcpu, pmem, rss_kb, comm)."""
+    try:
+        # macOS: rss is in bytes on some versions, KB on others; man says 1K units. Use rss for relative; pmem is %.
+        out = subprocess.run(
+            ["ps", "-axo", "pid,pcpu,pmem,rss,comm"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if out.returncode != 0 or not out.stdout:
+            return []
+        lines = out.stdout.strip().splitlines()
+        if not lines:
+            return []
+        result = []
+        for line in lines[1:]:
+            parts = line.split(None, 4)
+            if len(parts) < 5:
+                continue
+            try:
+                pid = int(parts[0])
+                pcpu = float(parts[1])
+                pmem = float(parts[2])
+                rss = int(parts[3])
+                comm = parts[4].strip() if len(parts) > 4 else ""
+                result.append((pid, pcpu, pmem, rss, comm))
+            except (ValueError, IndexError):
+                continue
+        return result
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return []
+
+
+def _ps_pid(pid):
+    """Return one line of ps -p PID with wide format, or None."""
+    try:
+        out = subprocess.run(
+            [
+                "ps", "-p", str(pid),
+                "-o", "pid=,ppid=,user=,%cpu=,%mem=,rss=,vsz=,state=,etime=,time=,comm=,command=",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode != 0 or not out.stdout:
+            return None
+        return out.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _thread_count(pid):
+    """Thread count for PID (ps -M -p PID); light single process only."""
+    try:
+        out = subprocess.run(
+            ["ps", "-M", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode != 0:
+            return None
+        lines = [l for l in out.stdout.strip().splitlines() if l.strip()]
+        return len(lines) - 1 if len(lines) > 1 else len(lines)
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _process_count():
+    """Total number of processes (one ps -ax -o pid)."""
+    try:
+        out = subprocess.run(
+            ["ps", "-ax", "-o", "pid"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if out.returncode != 0 or not out.stdout:
+            return None
+        lines = [l for l in out.stdout.strip().splitlines() if l.strip()][1:]
+        return len(lines)
+    except (subprocess.TimeoutExpired, FileNotFoundError, PermissionError, OSError):
+        return None
+
+
+def _format_bytes(n):
+    if n is None or n < 0:
+        return "?"
+    if n >= 1024**4:
+        return f"{n / 1024**4:.2f} TiB"
+    if n >= 1024**3:
+        return f"{n / 1024**3:.2f} GiB"
+    if n >= 1024**2:
+        return f"{n / 1024**2:.2f} MiB"
+    if n >= 1024:
+        return f"{n / 1024:.2f} KiB"
+    return f"{n} B"
+
+
+# -----------------------------------------------------------------------------
+# Commands
+def _show_info():
+    """Show max CPU and memory capacity, plus load and process count."""
+    s = _sysctl("hw.memsize", "hw.ncpu", "vm.loadavg")
+    total_bytes = int(s["hw.memsize"]) if s.get("hw.memsize") else None
+    ncpu = int(s["hw.ncpu"]) if s.get("hw.ncpu") else None
+    load = s.get("vm.loadavg", "").strip("{}")
+
+    print("Max capacity")
+    print("  CPU:  ", f"{ncpu} cores" if ncpu is not None else "?")
+    print("  Memory:", _format_bytes(total_bytes) if total_bytes else "?")
+    if load:
+        parts = load.split()
+        if len(parts) >= 3:
+            print("  Load:   [1m]", parts[0], "[5m]", parts[1], "[15m]", parts[2])
+        else:
+            print("  Load: ", load)
+    nproc = _process_count()
+    if nproc is not None:
+        print("  Processes:", nproc)
+
+
+def _show_used():
+    """Show current CPU and memory used and % of available."""
+    s = _sysctl("hw.memsize")
+    total_bytes = int(s["hw.memsize"]) if s.get("hw.memsize") else None
+    vm = _vm_stat()
+    idle, user, sys_ = _top_cpu_idle()
+
+    if total_bytes and vm and "pages_free" in vm:
+        free_bytes = vm["pages_free"] * _PAGE_SIZE
+        used_bytes = total_bytes - free_bytes
+        used_pct = (used_bytes / total_bytes * 100) if total_bytes else None
+        print("Memory")
+        print("  Used: ", _format_bytes(used_bytes), f"({used_pct:.1f}% of max)" if used_pct is not None else "")
+        print("  Total:", _format_bytes(total_bytes))
+    else:
+        print("Memory: (vm_stat/sysctl unavailable)")
+
+    if idle is not None:
+        used_cpu = 100.0 - idle
+        print("CPU")
+        print("  Used: ", f"{used_cpu:.1f}% (user {user:.1f}%, sys {sys_:.1f}%)")
+        print("  Idle: ", f"{idle:.1f}%")
+    else:
+        print("CPU: (top snapshot unavailable)")
+
+    nproc = _process_count()
+    if nproc is not None:
+        print("Processes:", nproc)
+
+
+def _show_memory():
+    """Show memory breakdown from vm_stat: kernel (wired), cache (inactive/speculative), app (active), etc."""
+    s = _sysctl("hw.memsize")
+    total_bytes = int(s["hw.memsize"]) if s.get("hw.memsize") else None
+    vm = _vm_stat()
+    if not total_bytes or not vm:
+        print("Memory breakdown: (sysctl/vm_stat unavailable)", file=sys.stderr)
+        return
+    total_bytes = int(total_bytes)
+    page_size = vm.get("page_size", _PAGE_SIZE)
+
+    def _pages_bytes(key):
+        p = vm.get(key, 0)
+        return p * page_size
+
+    free_bytes = _pages_bytes("pages_free")
+    wired_bytes = _pages_bytes("pages_wired_down") or _pages_bytes("pages_wired")
+    active_bytes = _pages_bytes("pages_active")
+    inactive_bytes = _pages_bytes("pages_inactive")
+    speculative_bytes = _pages_bytes("pages_speculative")
+    compressor_bytes = _pages_bytes("pages_occupied_by_compressor")
+    purgeable_bytes = _pages_bytes("pages_purgeable")
+
+    def _line(label, bytes_val, note=""):
+        pct = (bytes_val / total_bytes * 100) if total_bytes else 0
+        extra = f"  — {note}" if note else ""
+        print(f"  {label:<14} {_format_bytes(bytes_val):>12}  {pct:>5.1f}%{extra}")
+
+    print("Memory breakdown (vm_stat)")
+    print("  (Wired ≈ kernel/non-pageable; Active ≈ app; Inactive+Speculative ≈ cache)")
+    print()
+    _line("Total", total_bytes)
+    _line("Free", free_bytes, "not in use")
+    _line("Wired", wired_bytes, "kernel, non-pageable")
+    _line("Active", active_bytes, "in use, pageable (app)")
+    _line("Inactive", inactive_bytes, "cached, reclaimable")
+    _line("Speculative", speculative_bytes, "speculative file cache")
+    _line("Compressor", compressor_bytes, "compressed pages")
+    _line("Purgeable", purgeable_bytes, "can be purged by system")
+    used_no_free = total_bytes - free_bytes
+    _line("Used (total−free)", used_no_free)
+
+
+def _show_top(parts):
+    """show top [N] cpu | show top [N] memory. N defaults to 5."""
+    # parts: ["show", "top", optional N, "cpu"|"memory"]
+    if len(parts) < 3:
+        print("Usage: show top [N] cpu | show top [N] memory  (N defaults to 5)", file=sys.stderr)
+        return
+    i = 2
+    n = _DEFAULT_TOP_N
+    kind = None
+    if parts[i].isdigit():
+        n = max(1, min(500, int(parts[i])))
+        i += 1
+    if i < len(parts):
+        kind = parts[i].lower()
+    if kind not in ("cpu", "memory"):
+        print("Usage: show top [N] cpu | show top [N] memory", file=sys.stderr)
+        return
+
+    procs = _ps_all_cpu_mem()
+    if not procs:
+        print("Could not read process list.", file=sys.stderr)
+        return
+
+    s = _sysctl("hw.memsize")
+    total_bytes = int(s["hw.memsize"]) if s.get("hw.memsize") else None
+    vm = _vm_stat()
+    used_bytes = None
+    if total_bytes and vm and "pages_free" in vm:
+        used_bytes = total_bytes - vm["pages_free"] * _PAGE_SIZE
+    idle, _, _ = _top_cpu_idle()
+    total_cpu_used = (100.0 - idle) if idle is not None else None
+
+    if kind == "cpu":
+        procs_sorted = sorted(procs, key=lambda x: x[1], reverse=True)[:n]
+    else:
+        procs_sorted = sorted(procs, key=lambda x: x[2], reverse=True)[:n]
+
+    # RSS: macOS ps often reports rss in 1024-byte units (man: 1K units)
+    _comm_max = 132
+    print(f"Top {n} by {kind}")
+    print(f"{'PID':>8}  {'%max':>8}  {'%used':>8}  COMMAND")
+    print("-" * (8 + 2 + 8 + 2 + 8 + 2 + _comm_max))
+    for pid, pcpu, pmem, rss_kb, comm in procs_sorted:
+        pct_max = pcpu if kind == "cpu" else pmem
+        if kind == "cpu" and total_cpu_used and total_cpu_used > 0:
+            pct_used = pcpu / total_cpu_used * 100
+        elif kind == "memory" and used_bytes and used_bytes > 0 and rss_kb:
+            rss_bytes = rss_kb * 1024
+            pct_used = rss_bytes / used_bytes * 100
+        else:
+            pct_used = None
+        comm_short = (comm[: _comm_max] + "..") if len(comm) > _comm_max else comm
+        pct_used_str = f"{pct_used:.1f}%" if pct_used is not None else "-"
+        print(f"{pid:>8}  {pct_max:>7.1f}%  {pct_used_str:>8}  {comm_short}")
+    if kind == "memory" and used_bytes:
+        print("  (%%used = process RSS / total 'used' memory. Most 'used' is kernel/cache, not process RSS.)")
+
+
+def _show_pid(parts):
+    """show pid X - as much info as easily available for that PID."""
+    if len(parts) < 3:
+        print("Usage: show pid <PID>", file=sys.stderr)
+        return
+    try:
+        pid = int(parts[2])
+    except ValueError:
+        print("Invalid PID.", file=sys.stderr)
+        return
+    line = _ps_pid(pid)
+    if not line:
+        print("No process found for PID", pid, file=sys.stderr)
+        return
+    # ps -o pid=,ppid=,... so order is pid ppid user %cpu %mem rss vsz state etime time comm command
+    print("Process:")
+    print("  pid  ppid  user   %cpu  %mem   rss     vsz  state  etime       time  comm  command")
+    print(" ", line)
+    threads = _thread_count(pid)
+    if threads is not None:
+        print("  Threads:", threads)
+
+
+# -----------------------------------------------------------------------------
+# Command registry and CLI
+def _help_show_info():
+    print("show info — Max capacity and system overview")
+    print()
+    print("  CPU        Number of hardware cores (max parallel CPU capacity).")
+    print("  Memory     Total physical RAM installed.")
+    print("  Load       Load average: 1-, 5-, and 15-minute averages of runnable")
+    print("             entities (processes + threads waiting for CPU). Roughly:")
+    print("             load ≤ cores = OK; load >> cores = system busy.")
+    print("  Processes  Total number of processes currently on the system.")
+
+
+def _help_show_used():
+    print("show used — Current resource usage")
+    print()
+    print("  Memory      Used = total RAM minus free (from vm_stat). Shown as")
+    print("              size and % of max. Total = physical RAM.")
+    print("  CPU         Used = 100% minus idle (from one top snapshot). User/sys")
+    print("              split; idle is CPU not busy.")
+    print("  Processes   Total number of processes (same as in show info).")
+
+
+def _help_show_top():
+    print("show top [N] cpu | show top [N] memory")
+    print()
+    print("  Lists the top N processes (default 5) by CPU or memory.")
+    print("  Columns:")
+    print("    PID     Process ID.")
+    print("    %max    Process usage as % of total system capacity (one core = 100%")
+    print("            for CPU; % of total RAM for memory).")
+    print("    %used   Process share of what is currently in use (can exceed 100%")
+    print("            for CPU on multi-core systems). For memory, %used = process RSS")
+    print("            / total 'used' (vm_stat); most 'used' is kernel/cache, so top")
+    print("            processes often sum to well under 100%.")
+    print("    COMMAND Process path (up to 132 chars).")
+
+
+def _help_show_memory():
+    print("show memory — Breakdown of used RAM (kernel/cache/app)")
+    print()
+    print("  Uses vm_stat. Categories:")
+    print("  Wired      Kernel and non-pageable memory (cannot be paged out).")
+    print("  Active     In use, pageable (application memory).")
+    print("  Inactive   Cached, reclaimable under pressure.")
+    print("  Speculative  Speculative file cache.")
+    print("  Compressor  Memory used to hold compressed pages.")
+    print("  Used       Total − Free (same as in show used).")
+
+
+def _help_show_pid():
+    print("show pid <PID> — Details for one process")
+    print()
+    print("  Prints one line from ps: pid, ppid, user, %cpu, %mem, rss, vsz,")
+    print("  state, etime, time, comm, command. Then thread count for that process.")
+    print("  rss = resident set size (physical memory), vsz = virtual size.")
+
+
+def _cli_help_all():
+    print("Commands:")
+    print("  show info         max CPU (cores) and memory capacity; load; process count")
+    print("  show used         current CPU and memory used (% of available)")
+    print("  show memory       breakdown: wired (kernel), active, inactive, cache, compressor")
+    print("  show top [N] cpu  top N (default 5) CPU-heavy processes; % of max and % of used")
+    print("  show top [N] memory  top N memory-heavy processes")
+    print("  show pid <PID>    detailed info for process PID")
+    print("  help [topic]      this help or help for a command")
+    print("  help show <sub>   explain show info | used | top | pid")
+    print("  quit | exit | q   exit")
+
+
+def _cli_help_show_sub(sub):
+    subs = {"info": _help_show_info, "used": _help_show_used, "memory": _help_show_memory, "top": _help_show_top, "pid": _help_show_pid}
+    if sub in subs:
+        subs[sub]()
+    else:
+        print("Unknown: help show", sub)
+        print("Use: help show info | used | memory | top | pid")
+
+
+def _cli_help_topic(parts):
+    """parts: ['help', ...] — may be ['help'] or ['help', 'show'] or ['help', 'show', 'info'] etc."""
+    if len(parts) < 2:
+        _cli_help_all()
+        return
+    t = parts[1].lower()
+    if t == "show":
+        if len(parts) >= 3:
+            _cli_help_show_sub(parts[2].lower())
+        else:
+            _cli_help_all()
+        return
+    print("Unknown topic. Type 'help' for commands.")
+
+
+def _dispatch_show(parts):
+    if len(parts) < 2:
+        print("Usage: show info | used | memory | top [N] cpu|memory | pid <PID>", file=sys.stderr)
+        return
+    sub = parts[1].lower()
+    if sub == "info":
+        _show_info()
+    elif sub == "used":
+        _show_used()
+    elif sub == "memory":
+        _show_memory()
+    elif sub == "top":
+        _show_top(parts)
+    elif sub == "pid":
+        _show_pid(parts)
+    else:
+        print("Usage: show info | used | memory | top [N] cpu|memory | pid <PID>", file=sys.stderr)
+
+
+_COMMANDS = {
+    "show": (_dispatch_show, "show info | used | memory | top [N] cpu|memory | pid <PID>"),
+}
+_CLI_COMMAND_NAMES = ["help", "quit", "exit", "q", "show"]
+_CLI_HISTORY_FILE = Path.home() / ".system-resources-history"
+
+
+def _cli_completer(text, state):
+    if not _readline_available:
+        return None
+    try:
+        buffer = readline.get_line_buffer()
+        endidx = readline.get_endidx()
+        before = buffer[:endidx]
+        parts = before.split()
+        prefix = (parts[-1] if parts else "").lower()
+        if len(parts) == 1:
+            completions = [c for c in _CLI_COMMAND_NAMES if c.startswith(prefix)]
+        elif len(parts) == 2 and parts[0].lower() == "show":
+            completions = [c for c in ["info", "used", "memory", "top", "pid"] if c.startswith(prefix)]
+        elif len(parts) == 2 and parts[0].lower() == "help":
+            completions = [c for c in ["show"] if c.startswith(prefix)]
+        elif len(parts) == 3 and parts[0].lower() == "show" and parts[1].lower() == "top":
+            completions = [c for c in ["cpu", "memory"] if c.startswith(prefix)]
+        elif len(parts) == 3 and parts[0].lower() == "help" and parts[1].lower() == "show":
+            completions = [c for c in ["info", "used", "memory", "top", "pid"] if c.startswith(prefix)]
+        else:
+            completions = []
+        completions.sort()
+        return completions[state] if state < len(completions) else None
+    except Exception:
+        return None
+
+
+def _run_interactive():
+    print("system-resources: Type 'help' for commands.")
+    if _readline_available:
+        readline.set_history_length(200)
+        try:
+            if _CLI_HISTORY_FILE.exists():
+                readline.read_history_file(str(_CLI_HISTORY_FILE))
+        except OSError:
+            pass
+        readline.set_completer(_cli_completer)
+        readline.parse_and_bind("tab: complete")
+
+    while True:
+        try:
+            line = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not line:
+            continue
+        parts = line.split()
+        cmd = parts[0].lower()
+        if cmd in ("quit", "exit", "q"):
+            break
+        if cmd == "help":
+            _cli_help_all() if len(parts) < 2 else _cli_help_topic(parts)
+            continue
+        if cmd in _COMMANDS:
+            handler, _ = _COMMANDS[cmd]
+            handler(parts)
+            continue
+        print("Unknown command. Type 'help' for commands.", file=sys.stderr)
+
+    if _readline_available:
+        try:
+            readline.write_history_file(str(_CLI_HISTORY_FILE))
+        except OSError:
+            pass
+
+
+def _run_one_shot(args):
+    if not args or args[0].lower() != "show":
+        print("Usage: system-resources show info | used | top [N] cpu|memory | pid <PID>", file=sys.stderr)
+        sys.exit(1)
+    _dispatch_show(["show"] + args[1:])
+
+
+def main():
+    if len(sys.argv) > 1:
+        _run_one_shot(sys.argv[1:])
+    else:
+        _run_interactive()
+
+
+if __name__ == "__main__":
+    main()
