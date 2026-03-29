@@ -1,0 +1,4 @@
+# Default POC: replace in compose or mount a different file for path routing.
+:80 {
+	respond "caddy gateway ok"
+}
