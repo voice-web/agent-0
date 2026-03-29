@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "local-ai"
+version = "0.1.0"
+description = "Phase 3: Open Interpreter and POC Python helpers (Poetry + asdf)"
+authors = ["local-ai POC"]
+package-mode = false
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.15"
+open-interpreter = ">=0.4.3,<0.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

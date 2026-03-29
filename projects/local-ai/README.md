@@ -207,42 +207,44 @@ UI labels move between releases; the idea is always: **admin → settings → fe
 
 ---
 
-## Part 3 — Action agent: Open Interpreter
+## Part 3 — Action agent: Open Interpreter (**asdf** + **Poetry**)
 
-Use a **virtual environment** so dependencies stay isolated.
+This project uses **asdf** to pin **python**, **poetry**, and **ollama**, and **Poetry** for **`open-interpreter`** (no ad-hoc `pip install` / `venv`).
 
-### macOS / Linux
+### One-time setup (Phase 3)
 
-```bash
-python3 -m venv ~/.venvs/open-interpreter
-source ~/.venvs/open-interpreter/bin/activate
-pip install -U pip open-interpreter
-```
-
-### Windows (PowerShell)
-
-```powershell
-python -m venv $env:USERPROFILE\.venvs\open-interpreter
-& $env:USERPROFILE\.venvs\open-interpreter\Scripts\Activate.ps1
-pip install -U pip open-interpreter
-```
-
-### Point Open Interpreter at **local Ollama**
-
-With Ollama running on the host:
+From **`projects/local-ai/`**:
 
 ```bash
-interpreter --model ollama/llama3.1:8b
-# or
-interpreter --model ollama/gemma2:9b
+./scripts/setup-phase3-asdf.sh
+poetry install
 ```
 
-If your install expects the chat variant, try `ollama_chat/<model>` instead of `ollama/<model>` (see [Open Interpreter local models](https://docs.openinterpreter.com/language-models/local-models)).
+**`setup-phase3-asdf.sh`** (requires **asdf** and plugins **python**, **poetry**, **ollama**):
+
+- Resolves the **latest** version each plugin advertises (`asdf latest`, with a fallback to **`asdf list all | sort -V`**).
+- Writes **`projects/local-ai/.tool-versions`** and runs **`asdf install`**.
+
+Then **`poetry install`** creates the env and installs **`open-interpreter`** from **`pyproject.toml`** / **`poetry.lock`**. Requires **Poetry 1.2+** for **`-C`** (project directory); upgrade via asdf after **`setup-phase3-asdf.sh`**.
+
+### Run Interpreter in the sandbox
+
+Work from **`~/vap-sandbox-0`**, but run the CLI from this project’s Poetry env (**`poetry -C …`**):
+
+```bash
+cd ~/vap-sandbox-0
+poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --model ollama/qwen2.5:0.5b
+# or: node-0, codellama, llama3.1:8b, …
+```
+
+Replace **`/ABS/PATH/TO/agent-0`** with your clone (or use **`$(git -C … rev-parse --show-toplevel)/projects/local-ai`** from a repo checkout).
+
+If your install expects the chat variant, try **`ollama_chat/<model>`** instead of **`ollama/<model>`** (see [Open Interpreter local models](https://docs.openinterpreter.com/language-models/local-models)).
 
 **Interactive local setup:**
 
 ```bash
-interpreter --local
+poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --local
 ```
 
 Follow prompts to select **Ollama** and the model name that matches what you pulled.
@@ -272,12 +274,11 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 1. **Default sandbox (outside the repo):** **`~/vap-sandbox-0`**. Create it once: `mkdir -p ~/vap-sandbox-0`. Keeping agent file work **outside** **agent-0** avoids mixing generated content with git-tracked code. For this POC the folder name is fixed; **later** you can treat **`$HOME`** as the workspace if you choose (understanding the risk footprint).
 2. **Starter files (Phase 1):** Copy **`sandbox-starters/notes.md`** and **`sandbox-starters/hello.py`** into **`~/vap-sandbox-0/`** (or match their contents). They are for Interpreter smoke tests. Confirm with **`./scripts/verify-phase1.sh`** from this directory.
-3. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter:
+3. **`cd` into the sandbox**, then start Interpreter via Poetry (see **Part 3**):
 
    ```bash
    cd ~/vap-sandbox-0
-   source ~/.venvs/open-interpreter/bin/activate
-   interpreter --model ollama/qwen2.5:0.5b   # or node-0, codellama, llama3.1:8b, etc.
+   poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --model ollama/qwen2.5:0.5b
    ```
 
 4. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.

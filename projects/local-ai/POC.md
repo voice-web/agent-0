@@ -72,8 +72,10 @@ Pick **one** path for the POC (add others later):
 
 ## Phase 3 — Action leg (Open Interpreter)
 
-- [ ] Python venv with `open-interpreter` installed.
-- [ ] `cd` **into sandbox** → `interpreter --model ollama/<same-model-as-ollama-pull>`.
+- [ ] **asdf:** Plugins **python**, **poetry**, and **ollama** installed (`asdf plugin list`).
+- [ ] From **`projects/local-ai`**: **`./scripts/setup-phase3-asdf.sh`** — writes **`.tool-versions`** with latest **python** / **poetry** / **ollama** and runs **`asdf install`**.
+- [ ] **`poetry install`** — installs **`open-interpreter`** from **`pyproject.toml`** / **`poetry.lock`**.
+- [ ] **`cd` into `~/vap-sandbox-0`** → **`poetry -C …/projects/local-ai run interpreter --model ollama/<same-model-as-ollama-pull>`** (Poetry **1.2+**).
 - [ ] Single scripted task works (e.g. “add a function to `hello.py` and update `notes.md`”).
 - [ ] Confirm-before-run stays on until you are comfortable.
 
@@ -124,6 +126,6 @@ On a **new machine**, you should eventually be able to run something like **one 
 2. **Verifies after each step** — same idea as **`scripts/verify-phase1.sh`**: exit non-zero with a clear message so you never assume a silent failure.
 3. **Stays idempotent where possible** — safe to re-run; skip or no-op when already satisfied.
 
-Today, **`verify-phase1.sh`** is the first verify hook; **`start-poc.sh`** / **`stop-poc.sh`** automate **Phase 2** bring-up/teardown (compose stack). Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
+Today, **`verify-phase1.sh`** is the first verify hook; **`start-poc.sh`** / **`stop-poc.sh`** automate **Phase 2**; **`setup-phase3-asdf.sh`** pins asdf runtimes for **Phase 3**. Later, add **`verify-phase2.sh`**, **`verify-phase3.sh`**, … or one orchestrator that calls phase scripts and gates on each exit code. The POC checklist above stays the **spec**; the scripts become the **automation**.
 
 When you add automation, link the entrypoint here and keep **manual** steps documented for debugging.
