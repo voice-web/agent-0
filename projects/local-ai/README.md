@@ -2,7 +2,7 @@
 
 Private, local AI workstation: **research** (Open WebUI + RAG + web search), **action** (Open Interpreter + local files/code), and a **single local model host** (Ollama). Goal: iterate on a business idea **without sending prompts or documents to the cloud**.
 
-**Repository:** This project lives under **`agent-0`** at `projects/local-ai/`. It was removed from the **`vap`** repo to keep all implementation and POC work here. Older notes and host scripts live next door in **`../ollama/`** (reference bundle).
+**Portable tree:** Everything you need for the POC scripts lives **inside this directory** (`scripts/`, `reference/modelfiles/`, `docker-compose.yml`, etc.). You can archive or copy the folder to another machine and run **`./scripts/start-poc.sh`** from there; logs from the CLI Ollama fallback go to **`var/ollama-serve.log`** (created automatically). You still need **Docker** (e.g. OrbStack on macOS), **Ollama** on the host, and network for the first image pull. Work data such as **`~/vap-sandbox-0`** and pulled models stay **outside** this folder by design.
 
 **POC roadmap:** Step-by-step phases, checkboxes, and definition of done → **[POC.md](POC.md)**. The checklist is the **spec**; the long-term plan is a **single scripted deploy** with per-step verification on new machines — see **POC.md** → *Last step (future): scripted, repeatable “deploy the POC”* (not built yet; **`verify-phase1.sh`** is the first verify hook).
 
@@ -233,18 +233,18 @@ Work from **`~/vap-sandbox-0`**, but run the CLI from this project’s Poetry en
 
 ```bash
 cd ~/vap-sandbox-0
-poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --model ollama/qwen2.5:0.5b
+poetry -C /path/to/local-ai run interpreter --model ollama/qwen2.5:0.5b
 # or: node-0, codellama, llama3.1:8b, …
 ```
 
-Replace **`/ABS/PATH/TO/agent-0`** with your clone (or use **`$(git -C … rev-parse --show-toplevel)/projects/local-ai`** from a repo checkout).
+Replace **`/path/to/local-ai`** with the absolute path to **this** project (tarball unpack dir, clone, etc.).
 
 If your install expects the chat variant, try **`ollama_chat/<model>`** instead of **`ollama/<model>`** (see [Open Interpreter local models](https://docs.openinterpreter.com/language-models/local-models)).
 
 **Interactive local setup:**
 
 ```bash
-poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --local
+poetry -C /path/to/local-ai run interpreter --local
 ```
 
 Follow prompts to select **Ollama** and the model name that matches what you pulled.
@@ -272,13 +272,13 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 ### Recommended baseline
 
-1. **Default sandbox (outside the repo):** **`~/vap-sandbox-0`**. Create it once: `mkdir -p ~/vap-sandbox-0`. Keeping agent file work **outside** **agent-0** avoids mixing generated content with git-tracked code. For this POC the folder name is fixed; **later** you can treat **`$HOME`** as the workspace if you choose (understanding the risk footprint).
+1. **Default sandbox (outside this project):** **`~/vap-sandbox-0`**. Create it once: `mkdir -p ~/vap-sandbox-0`. Keeping agent file work **outside** the **`local-ai`** tree avoids mixing generated content with the project you might tar or git-clone. For this POC the folder name is fixed; **later** you can treat **`$HOME`** as the workspace if you choose (understanding the risk footprint).
 2. **Starter files (Phase 1):** Copy **`sandbox-starters/notes.md`** and **`sandbox-starters/hello.py`** into **`~/vap-sandbox-0/`** (or match their contents). They are for Interpreter smoke tests. Confirm with **`./scripts/verify-phase1.sh`** from this directory.
 3. **`cd` into the sandbox**, then start Interpreter via Poetry (see **Part 3**):
 
    ```bash
    cd ~/vap-sandbox-0
-   poetry -C /ABS/PATH/TO/agent-0/projects/local-ai run interpreter --model ollama/qwen2.5:0.5b
+   poetry -C /path/to/local-ai run interpreter --model ollama/qwen2.5:0.5b
    ```
 
 4. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.

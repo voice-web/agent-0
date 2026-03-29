@@ -42,7 +42,7 @@ From **`projects/local-ai/`**:
 ./scripts/start-poc.sh
 ```
 
-This tries to start **OrbStack** (`orb start` or `open -a OrbStack`) and **Ollama** if needed: first **`open -a Ollama`** on macOS (official app), then—if **port 11434** is still closed after ~10s—**`ollama serve`** in the background (typical **Homebrew / asdf** installs without the GUI app). Log: **`$TMPDIR/local-ai-ollama-serve.log`**. Waits until **Docker** and **`/api/tags`** respond, then runs **`docker compose up -d`**.
+This tries to start **OrbStack** (`orb start` or `open -a OrbStack`) and **Ollama** if needed: first **`open -a Ollama`** on macOS (official app), then—if **port 11434** is still closed after ~10s—**`scripts/ollama-serve-bg.sh`** runs **`ollama serve`** in the background (typical **Homebrew / asdf** installs without the GUI app). Log: **`var/ollama-serve.log`** under this project. Waits until **Docker** and **`/api/tags`** respond, then runs **`docker compose up -d`**.
 
 ```bash
 ./scripts/stop-poc.sh

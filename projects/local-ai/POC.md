@@ -2,7 +2,7 @@
 
 **Goal:** A local stack that can **pull context from the internet** (search or URLs), then **change files and run code** on your machine—using **one Ollama** on the host, with work concentrated under a **sandbox folder**.
 
-**Canonical repo:** `agent-0` → `projects/local-ai/`.
+**Canonical location:** Treat **`projects/local-ai/`** (this folder) as the unit you copy or archive; scripts do not **`source`** paths outside it.
 
 **Docker POC (macOS):** Use **OrbStack** + **`docker compose`** like other voice-web projects (see **`DOCKER.md`**).
 
@@ -20,11 +20,11 @@
 
 Nothing in this phase is optional. Finish everything here before Phase 2.
 
-- [ ] **Ollama CLI:** `ollama --version` runs (you may see MLX warnings on stderr; see **`../ollama/scripts/ollama-bg`** if you run the server from a script).
+- [ ] **Ollama CLI:** `ollama --version` runs (you may see MLX warnings on stderr; **`./scripts/start-poc.sh`** starts **`ollama serve`** via **`scripts/ollama-serve-bg.sh`** when the macOS app is missing).
 - [ ] **Ollama API:** `curl -s http://127.0.0.1:11434/api/tags` returns **HTTP 200** and JSON with at least one **`models`** entry.
-- [ ] **Models:** Pull or build what you need for WebUI + Interpreter (e.g. **`qwen2.5:0.5b`**, **`node-0`** from **`../ollama/custom-models/node-0`**, **`codellama`**). See **`../ollama/README.md`** § *What shows up in GET /api/tags*.
-- [ ] **asdf (if you use it):** Repo root and **`projects/ollama/.tool-versions`** pin **`ollama 0.17.0`** so the CLI matches.
-- [ ] **Sandbox directory:** **`~/vap-sandbox-0`** exists (`mkdir -p ~/vap-sandbox-0`) — **outside** **agent-0**. (Later you may widen scope to **`$HOME`**.)
+- [ ] **Models:** Pull or build what you need for WebUI + Interpreter (e.g. **`qwen2.5:0.5b`**, **`codellama`**). Custom **`node-0`**: **`ollama create node-0 -f reference/modelfiles/node-0`** (after **`ollama pull qwen2.5:0.5b`**). **`GET /api/tags`** lists whatever you have pulled or created.
+- [ ] **asdf (if you use it):** **`./scripts/setup-phase3-asdf.sh`** writes **`.tool-versions`** in this folder (python / poetry / ollama); run **`asdf install`** from here so the CLI is consistent.
+- [ ] **Sandbox directory:** **`~/vap-sandbox-0`** exists (`mkdir -p ~/vap-sandbox-0`) — **outside** this project tree. (Later you may widen scope to **`$HOME`**.)
 
 ### Starter files in the sandbox (required)
 
@@ -75,7 +75,7 @@ Pick **one** path for the POC (add others later):
 - [ ] **asdf:** Plugins **python**, **poetry**, and **ollama** installed (`asdf plugin list`).
 - [ ] From **`projects/local-ai`**: **`./scripts/setup-phase3-asdf.sh`** — writes **`.tool-versions`** with latest **python** / **poetry** / **ollama** and runs **`asdf install`**.
 - [ ] **`poetry install`** — installs **`open-interpreter`** from **`pyproject.toml`** / **`poetry.lock`**.
-- [ ] **`cd` into `~/vap-sandbox-0`** → **`poetry -C …/projects/local-ai run interpreter --model ollama/<same-model-as-ollama-pull>`** (Poetry **1.2+**).
+- [ ] **`cd` into `~/vap-sandbox-0`** → **`poetry -C /path/to/local-ai run interpreter --model ollama/<same-model-as-ollama-pull>`** (Poetry **1.2+**; use the absolute path to **this** folder).
 - [ ] Single scripted task works (e.g. “add a function to `hello.py` and update `notes.md`”).
 - [ ] Confirm-before-run stays on until you are comfortable.
 

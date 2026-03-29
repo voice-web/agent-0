@@ -36,7 +36,7 @@ def main() -> int:
 
     req = Request(
         args.url,
-        headers={"User-Agent": "local-ai-fetch/1.0 (+agent-0/local-ai)"},
+        headers={"User-Agent": "local-ai-fetch/1.0"},
         method="GET",
     )
     try:

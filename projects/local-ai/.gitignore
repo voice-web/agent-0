@@ -1,0 +1,5 @@
+# Generated / local (this tree is meant to be tar-copyable; keep secrets out of git)
+.env
+var/
+.venv/
+__pycache__/

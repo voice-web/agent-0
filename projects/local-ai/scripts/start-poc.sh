@@ -31,6 +31,7 @@ ollama_port_listening() {
 }
 
 # Start `ollama serve` when the GUI app is missing (common with Homebrew / asdf ollama).
+# Logs only under ${ROOT}/var/ (no dependency on paths outside this project).
 try_start_ollama_cli() {
   command -v ollama >/dev/null 2>&1 || return 1
   if pgrep -f '[o]llama serve' >/dev/null 2>&1; then
@@ -40,11 +41,8 @@ try_start_ollama_cli() {
   if ollama_port_listening; then
     return 0
   fi
-  local log="${TMPDIR:-/tmp}/local-ai-ollama-serve.log"
-  say "Nothing on :11434 — starting Ollama via CLI (\`ollama serve\`). Log: $log"
-  # Same default as projects/ollama/scripts/ollama-bg (quiet MLX probe noise on some Mac builds).
-  export OLLAMA_LLM_LIBRARY="${OLLAMA_LLM_LIBRARY:-cpu_avx2}"
-  nohup ollama serve >>"$log" 2>&1 &
+  say "Nothing on :11434 — starting Ollama via CLI (\`scripts/ollama-serve-bg.sh\`). Log: ${ROOT}/var/ollama-serve.log"
+  bash "${ROOT}/scripts/ollama-serve-bg.sh"
   sleep 2
   return 0
 }
@@ -118,7 +116,7 @@ ensure_ollama() {
       echo "error: Ollama did not become ready at ${OLLAMA_URL} (after ${waited}s)." >&2
       echo "    macOS: install the Ollama app, or ensure \`ollama\` is on PATH and run: ollama serve" >&2
       echo "    Linux: ollama serve   or: sudo systemctl start ollama" >&2
-      echo "    Log (if CLI fallback ran): \${TMPDIR:-/tmp}/local-ai-ollama-serve.log" >&2
+      echo "    Log (if CLI fallback ran): ${ROOT}/var/ollama-serve.log" >&2
       exit 1
     fi
     sleep 2
