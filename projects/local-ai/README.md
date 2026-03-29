@@ -16,7 +16,7 @@ docker compose up -d
 
 Open **http://localhost:3000**. Step-by-step for **OrbStack**, context checks, and **`docker compose` vs `docker-compose`**: **[DOCKER.md](DOCKER.md)** (same POC style as **`vap`** projects such as **`local-gateway-v1`**). On **Linux** Docker Engine, read **Part 2** for `host.docker.internal` vs bridge IP / host network.
 
-**URL → file (no search setup):** `python3 scripts/fetch_url.py <url> -o ~/BusinessSandbox/page.html`
+**URL → file (no search setup):** from repo root, `python3 projects/local-ai/scripts/fetch_url.py <url> -o environment/sandbox/page.html` (or from `projects/local-ai`, `-o ../../environment/sandbox/page.html`).
 
 ---
 
@@ -258,15 +258,16 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 ### Recommended baseline
 
-1. Create a folder **only** for this business work, e.g.  
-   `~/BusinessSandbox` (macOS/Linux) or `C:\BusinessSandbox` (Windows).
-2. **Always** activate your venv, **`cd` into that folder**, then start Interpreter:
+1. **Default sandbox in this repo:** **`environment/sandbox/`** at the **agent-0** root (tracked in git via `.gitkeep`; add your working files here). You can still use another path (e.g. `~/BusinessSandbox`) if you prefer.
+2. **Always** activate your venv, **`cd` into the sandbox**, then start Interpreter. From **anywhere inside** the **agent-0** clone:
 
    ```bash
-   cd ~/BusinessSandbox
+   cd "$(git rev-parse --show-toplevel)/environment/sandbox"
    source ~/.venvs/open-interpreter/bin/activate
-   interpreter --model ollama/llama3.1:8b
+   interpreter --model ollama/qwen2.5:0.5b   # or node-0, codellama, llama3.1:8b, etc.
    ```
+
+   Or use the absolute path to your clone, e.g. `~/voice-web/git/agent-0/environment/sandbox`.
 
 3. Keep **auto-run disabled** until you trust the workflow; approve actions when Interpreter asks.
 
@@ -274,7 +275,7 @@ Open Interpreter can **read and execute** on the machine where it runs. A **dedi
 
 ### Prompt rule (belt-and-suspenders)
 
-Tell the model explicitly: *Only read/write under `/path/to/BusinessSandbox`; refuse paths outside it.*
+Tell the model explicitly: *Only read/write under this repo’s `environment/sandbox` (give the full path from `pwd -P`); refuse paths outside it.*
 
 ---
 
@@ -298,7 +299,7 @@ Vendor UIs change; re-check each product’s **Settings → Privacy** and **docs
 - [ ] Open WebUI shows your Ollama models and can chat.
 - [ ] Open Interpreter responds using `ollama/<model>` without cloud API keys.
 - [ ] Web search (if enabled) uses **your chosen** provider (self-hosted vs vendor).
-- [ ] Interpreter is started only from **`BusinessSandbox`** (or your chosen directory).
+- [ ] Interpreter is started only from **`environment/sandbox/`** (or your chosen directory).
 
 ---
 

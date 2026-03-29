@@ -5,7 +5,7 @@ Uses only the stdlib. HTML is not cleaned; for heavy pages prefer saving and
 summarizing in Open WebUI or a dedicated extractor.
 
 Examples:
-  python3 scripts/fetch_url.py https://example.com -o ~/BusinessSandbox/page.html
+  python3 scripts/fetch_url.py https://example.com -o ../../environment/sandbox/page.html
   python3 scripts/fetch_url.py https://example.com | head
 """
 
