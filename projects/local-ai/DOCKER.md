@@ -57,6 +57,7 @@ Stops only the **compose** stack (**`docker compose down`**). **Ollama** and **O
 | `LOCAL_AI_SKIP_ORB_START=1` | Do not try to launch OrbStack; fail if Docker is down. |
 | `LOCAL_AI_SKIP_OLLAMA_START=1` | Do not try to open the Ollama app; fail if Ollama is down. |
 | `LOCAL_AI_WEBUI_PORT=3000` | Port check base URL (default **3000**). |
+| `LOCAL_AI_WEBUI_WAIT_SECS=180` | Max seconds to poll **`http://127.0.0.1:PORT/`** after **`compose up`** (first boot is often **30–120s** after a fresh image pull; increase if your machine is slow). |
 
 ### Manual
 

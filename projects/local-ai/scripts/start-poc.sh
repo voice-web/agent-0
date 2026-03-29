@@ -128,14 +128,34 @@ ensure_ollama() {
   say "Ollama is up."
 }
 
-verify_webui_http() {
-  local code
-  code="$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 10 "${WEBUI_URL}/" || true)"
-  if [[ "$code" =~ ^(200|301|302|303|307|308)$ ]]; then
-    say "WebUI answered HTTP ${code} at ${WEBUI_URL}"
-    return 0
-  fi
-  echo "warn: WebUI check got HTTP ${code:-000} (container may still be starting); open ${WEBUI_URL} in a browser." >&2
+# First boot after pull can take 30–120s+ before uvicorn listens; HTTP 000 = nothing on the port yet.
+wait_for_webui() {
+  local max="${LOCAL_AI_WEBUI_WAIT_SECS:-180}"
+  local t=0
+  local code="000"
+  say "Waiting for Open WebUI on ${WEBUI_URL} (up to ${max}s; first start is slow)…"
+  while (( t < max )); do
+    code="000"
+    c="$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 8 "${WEBUI_URL}/" 2>/dev/null)" && code="$c"
+    [[ -z "$code" ]] && code="000"
+    if [[ "$code" =~ ^(200|301|302|303|307|308)$ ]]; then
+      say "WebUI answered HTTP ${code} at ${WEBUI_URL} (after ${t}s)"
+      return 0
+    fi
+    sleep 3
+    t=$((t + 3))
+    if (( t % 15 == 0 )); then
+      echo "    … still waiting for TCP ${WEBUI_PORT} (${t}s, last HTTP ${code})"
+    fi
+  done
+
+  echo "error: WebUI did not respond on ${WEBUI_URL} after ${max}s (last HTTP ${code})." >&2
+  echo "    Try in browser anyway; if it fails, check OrbStack port forwarding and logs below." >&2
+  echo "---- docker compose ps ----" >&2
+  docker compose ps -a >&2 || true
+  echo "---- docker compose logs (last 50 lines, service open-webui) ----" >&2
+  docker compose logs --tail 50 open-webui >&2 || true
+  return 1
 }
 
 say "local-ai Phase 2 — project dir: ${ROOT}"
@@ -146,8 +166,11 @@ say "docker compose up -d …"
 docker compose up -d
 
 say "compose stack started (container: open-webui)."
-sleep 2
-verify_webui_http || true
+if ! wait_for_webui; then
+  echo "" >&2
+  echo "    Tip: re-run after a minute, or: cd ${ROOT} && docker compose logs -f open-webui" >&2
+  exit 1
+fi
 
 echo ""
 echo "    Open WebUI: ${WEBUI_URL}"
