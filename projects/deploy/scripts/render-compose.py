@@ -66,7 +66,9 @@ def main() -> None:
             sys.exit("docker-compose.yml is out of date; run scripts/render-compose.py")
         print("OK: docker-compose.yml matches manifest + template")
         return
-    OUTPUT_PATH.write_text(out, encoding="utf-8", newline="\n")
+    # Use open(..., newline="\n") — Path.write_text(newline=) needs Python 3.10+ (e.g. OL9 python3.9).
+    with OUTPUT_PATH.open("w", encoding="utf-8", newline="\n") as fh:
+        fh.write(out)
     print(f"wrote {OUTPUT_PATH}")
 
 
