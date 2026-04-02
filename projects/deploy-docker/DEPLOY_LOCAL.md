@@ -130,13 +130,14 @@ Compose:
 
 Caddyfile is written to `.generated/Caddyfile-oci-vm` when you start **infra** (same as local). Reference copy: `examples/routing/Caddyfile-oci-vm`.
 
-**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak; `worldcliques.org` and `*.worldcliques.org` → default HTML; **`/login` and `/login/*` on those hosts → globe-landing** when `globe-landing` is enabled in `configs/oci-vm.json` (Caddy strips the `/login` prefix for the upstream, same idea as `/ui` on local).
+**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak. **Default HTML + `/login`:** only **explicit** hostnames (default **`worldcliques.org`** only — no `*.worldcliques.org` in Caddy). When `globe-landing` is enabled, **`/login/`** and **`/login/...`** proxy to globe-landing with the `/login` prefix stripped; **`/login`** (no slash) is **redirected to `/login/`** so relative `css/`, `js/`, and `assets/` URLs resolve correctly in the browser.
 
-**DNS (typical):** point `A`/`AAAA` for `worldcliques.org`, `api`, `auth`, and `*` (wildcard) to the VM as your design requires. **TLS:** default Caddy automatic HTTPS needs resolvable names and reachable :80/:443; `*.worldcliques.org` may require DNS-01. For testing without public DNS, set `WC_CADDY_TLS=internal` before `up.sh` so the generated Caddyfile uses `tls internal`.
+**DNS (typical):** create **`A`/`AAAA`** for each name Caddy serves: at minimum **`worldcliques.org`**, **`api`**, **`auth`**. Add **`www.worldcliques.org`** (and any other vhosts) by setting **`WC_OCI_HTML_HOSTS`** (comma-separated) before `up.sh` so TLS is only requested for names you have in DNS. **TLS:** HTTP-01 needs resolvable names and reachable :80/:443. For testing without public DNS, set `WC_CADDY_TLS=internal` before `up.sh` so the generated Caddyfile uses `tls internal`.
 
 Optional:
 
 - `WC_CADDY_ACME_EMAIL` — set globally in the generated Caddyfile for ACME registration.
+- `WC_OCI_HTML_HOSTS` — e.g. `worldcliques.org, www.worldcliques.org` (comma-separated site addresses for default-html and `/login`).
 
 ## Reference files (for review)
 

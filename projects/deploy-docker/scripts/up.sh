@@ -166,6 +166,10 @@ generate_caddyfile_oci_vm() {
     tls_line=$'\n\ttls internal'
   fi
 
+  # Comma-separated site addresses for default-html + /login (no wildcard — avoids TLS/DNS pain).
+  # Default apex only; add www via WC_OCI_HTML_HOSTS=worldcliques.org, www.worldcliques.org when DNS exists.
+  local html_hosts="${WC_OCI_HTML_HOSTS:-worldcliques.org}"
+
   local global_block=""
   if [[ -n "${WC_CADDY_ACME_EMAIL:-}" ]]; then
     global_block=$(
@@ -181,11 +185,16 @@ GLOB
   local login_block=""
   if [[ "$GLOBE_LANDING_ENABLED" == "true" ]]; then
     login_block='
-	# /login* on apex + subdomains -> globe-landing (prefix stripped like /ui on local)
-	handle_path /login/* {
+	# /login without trailing slash breaks relative css/js/assets URLs — browsers request /css/... at site root
+	@login_no_slash path /login
+	redir @login_no_slash /login/ 308
+
+	handle /login/* {
+		uri strip_prefix /login
 		reverse_proxy globe-landing:8080
 	}
-	handle_path /login {
+	handle /login/ {
+		uri strip_prefix /login
 		reverse_proxy globe-landing:8080
 	}
 '
@@ -201,7 +210,7 @@ GLOB
 
   cat >"$out_file" <<EOF
 ${global_block}# oci-vm: host + path routing on :80 and :443 (auto HTTPS when not using tls internal).
-# Wildcard *.worldcliques.org: public ACME may require DNS-01; set WC_CADDY_TLS=internal for lab.
+# HTML hosts: ${html_hosts} (set WC_OCI_HTML_HOSTS to add more, comma-separated).
 api.worldcliques.org {${tls_line}
 	encode zstd gzip
 	reverse_proxy default-api-json:8080
@@ -212,7 +221,7 @@ auth.worldcliques.org {${tls_line}
 	reverse_proxy keycloak:8080
 }
 
-worldcliques.org, *.worldcliques.org {${tls_line}
+${html_hosts} {${tls_line}
 	encode zstd gzip
 ${login_block}
 	handle {
@@ -447,9 +456,9 @@ elif [[ "$ENVIRONMENT" == "oci-vm" ]]; then
   echo "- Caddy: :80 (HTTP) and :443 (HTTPS); auto HTTPS unless WC_CADDY_TLS=internal"
   echo "- api.worldcliques.org -> default-api-json"
   echo "- auth.worldcliques.org -> keycloak (/auth on upstream)"
-  echo "- worldcliques.org and *.worldcliques.org -> default-html"
+  echo "- HTML hosts (WC_OCI_HTML_HOSTS or default worldcliques.org) -> default-html"
   if [[ "$GLOBE_LANDING_ENABLED" == "true" ]]; then
-    echo "- worldcliques.org/login* and *.worldcliques.org/login* -> globe-landing"
+    echo "- /login/ on those hosts -> globe-landing (/login -> 308 /login/ for correct relative assets)"
   else
     echo "- /login* on wc hosts -> 404 (globe-landing disabled in config)"
   fi
