@@ -28,3 +28,6 @@ node_modules/
 *.log
 dist/
 build/
+
+# deploy-docker: Caddyfile emitted by scripts/up.sh
+projects/deploy-docker/.generated/

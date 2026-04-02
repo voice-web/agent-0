@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Actor</title>
+    <meta name="description" content="Actor details" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/images/default-icon-32.png" />
+    <link rel="icon" type="image/png" href="assets/images/default-icon.png" />
+  </head>
+  <body>
+    <main class="actor-page" aria-label="Actor details">
+      <section class="actor-card">
+        <h1>Actor session</h1>
+        <p id="actor-info-status" class="actor-info-status">Loading actor...</p>
+        <dl id="actor-details" class="actor-details"></dl>
+        <div class="actor-actions">
+          <button id="actor-login-config" type="button">Login Config</button>
+          <button id="actor-logout" type="button">Logout</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="js/actor.js"></script>
+  </body>
+</html>
+

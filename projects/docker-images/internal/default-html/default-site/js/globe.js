@@ -10,10 +10,11 @@ const GLOBE_SEL = ".globe";
 const EARTH_TEXTURE_URL = "assets/earth-equirect.jpg";
 
 const DEFAULTS = {
-  // Negative = reverse rotation (matches globe-landing “feel”).
-  rotationSpeed: -0.3,
-  starsDensity: 1.0,
-  starsBrightness: 1.0,
+  // Use baked defaults aligned with globe-landing's default config.
+  // (In full app these normally come from config/api-driven settings.)
+  rotationSpeed: 0.0,
+  starsDensity: 1.43,
+  starsBrightness: 1.25,
 };
 
 function prefersReducedMotion() {
@@ -90,6 +91,9 @@ async function init() {
     alpha: true,
     powerPreference: "high-performance",
   });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -99,7 +103,8 @@ async function init() {
   const sphereRadius = 1;
   const geometry = new THREE.SphereGeometry(sphereRadius, 64, 64);
 
-  const material = new THREE.MeshBasicMaterial({ color: 0x12233a });
+  // Keep texture un-darkened; use white base color so map renders at intended brightness.
+  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const earth = new THREE.Mesh(geometry, material);
   scene.add(earth);
 

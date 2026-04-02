@@ -45,7 +45,7 @@ A sensible next step is a **separate project** that owns the **manifest** (“wh
 | Directory   | Use for |
 |------------|---------|
 | **`external/`** | Wrappers around **vendor** bases (official Caddy, Keycloak, databases, …), plus small additions (config baked in, themes, realm import assets). |
-| **`internal/`** | **Your** apps and tools. **`internal/basic-http`** — FastAPI static server; mount site files at **`/srv/www`**. See **`internal/basic-http/README.md`**. |
+| **`internal/`** | **Your** apps and tools. **`internal/basic-http`** — FastAPI static server; **`internal/globe-landing`** — static globe-landing site served by `python3 -m http.server`. |
 
 ### Versioning
 
@@ -76,6 +76,7 @@ From **`projects/docker-images`**:
 ./scripts/build-local.sh external/keycloak
 ./scripts/build-local.sh external/open-webui
 ./scripts/build-local.sh internal/basic-http
+./scripts/build-local.sh internal/globe-landing
 ```
 
 Default local name pattern: **`local/<service-name>:<version>`** (override with env vars documented in the script).

@@ -1,0 +1,22 @@
+{
+  "actor": {
+    "id": "default",
+    "email": "default@local"
+  },
+  "web_config": [
+    {
+      "base_url": "*",
+      "attributes": {
+        "mode": "poster",
+        "poster": "default",
+        "controls": false,
+        "params": {
+          "rotationSpeed": 0,
+          "starsDensity": 1.0,
+          "starsBrightness": 1.0
+        }
+      }
+    }
+  ]
+}
+

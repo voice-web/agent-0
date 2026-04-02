@@ -1,0 +1,19 @@
+{
+  "tone": {
+    "brightness": 1.31,
+    "contrast": 1.42,
+    "saturation": 1.57,
+    "waterLift": 0.7
+  },
+  "calibration": {
+    "lonOffsetDeg": 85,
+    "latOffsetDeg": -6,
+    "rotationSpeed": 0,
+    "viewYawDeg": -3238.03
+  },
+  "stars": {
+    "density": 1.43,
+    "brightness": 1.25
+  }
+}
+

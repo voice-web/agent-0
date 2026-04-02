@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Earth</title>
+    <meta name="description" content="Rotating Earth — static landing page" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/images/default-icon-32.png" />
+    <link rel="icon" type="image/png" href="assets/images/default-icon.png" />
+    <!-- Three.js ESM (pinned); globe logic in js/globe.js -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <form id="actor-login" class="actor-login" autocomplete="on">
+      <label for="actor-username">Sign in with actor email</label>
+      <div class="actor-login-row">
+        <input
+          id="actor-username"
+          name="username"
+          type="email"
+          placeholder="ray.jimenez@me.com"
+          required
+        />
+        <button type="submit">Sign In</button>
+      </div>
+      <p id="actor-status" class="actor-status"></p>
+    </form>
+    <main class="stage" aria-label="Rotating Earth">
+      <div class="globe" role="img" aria-label="3D globe of Earth"></div>
+    </main>
+    <script type="module" src="js/globe.js"></script>
+  </body>
+</html>
+

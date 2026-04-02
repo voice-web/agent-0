@@ -1,0 +1,15 @@
+{
+  "actors": [
+    {
+      "id": "default",
+      "email": "default@local",
+      "display_name": "Default Actor"
+    },
+    {
+      "id": "ray",
+      "email": "ray.jimenez@me.com",
+      "display_name": "Ray Jimenez"
+    }
+  ]
+}
+

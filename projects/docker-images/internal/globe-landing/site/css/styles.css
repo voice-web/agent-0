@@ -1,0 +1,298 @@
+/* Globe size: min / preferred / max — tweak --globe-min / --globe-max */
+:root {
+  --space: #0a0e1a;
+  --globe-min: 240px;
+  --globe-max: 640px;
+  --globe-pref: 52vmin;
+  --stars-density: 1;
+  --stars-brightness: 1;
+  --stars-layer-near: none;
+  --stars-layer-far: none;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--space);
+  background-image: radial-gradient(ellipse 140% 90% at 50% 120%, #1a2744 0%, var(--space) 62%);
+  filter: brightness(var(--stars-brightness)); /* User likes this affecting whole scene */
+  position: relative;
+  color: #e8eef8;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+}
+
+/* Random stars (generated in JS as data-URL layers) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--stars-layer-far);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.7;
+  animation: star-twinkle 7.2s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.stage::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--stars-layer-near);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.9;
+  animation: star-twinkle 4.8s ease-in-out infinite alternate-reverse;
+  z-index: 0;
+}
+
+.stage {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: clamp(5.5rem, 8vw, 6.5rem) clamp(1rem, 4vw, 2rem) clamp(1rem, 4vw, 2rem);
+  position: relative;
+  z-index: 1;
+}
+
+/*
+  Circular frame; WebGL canvas fills the square — overflow clips to a disk.
+*/
+.globe {
+  width: clamp(var(--globe-min), var(--globe-pref), var(--globe-max));
+  height: clamp(var(--globe-min), var(--globe-pref), var(--globe-max));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 0 48px rgba(60, 140, 220, 0.35),
+    0 0 0 1px rgba(120, 180, 255, 0.25),
+    inset -10% 0 22% rgba(0, 0, 0, 0.35),
+    inset 6% -4% 16% rgba(255, 255, 255, 0.12),
+    0 0.5rem 2rem rgba(0, 0, 0, 0.4);
+}
+
+.globe canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.globe-poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.controls {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(320px, calc(100vw - 2rem));
+  padding: 0.85rem;
+  border: 1px solid rgba(180, 210, 255, 0.35);
+  border-radius: 0.6rem;
+  background: rgba(9, 15, 28, 0.88);
+  color: #d8e7ff;
+  backdrop-filter: blur(4px);
+  font-size: 0.9rem;
+  z-index: 5;
+}
+
+@keyframes star-twinkle {
+  from {
+    opacity: 0.62;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.controls h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.controls label {
+  display: grid;
+  grid-template-columns: 84px 1fr 46px;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.controls code {
+  display: block;
+  white-space: nowrap;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  color: #b9d6ff;
+  padding: 0.35rem;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.controls button {
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(180, 210, 255, 0.45);
+  border-radius: 0.4rem;
+  background: rgba(66, 132, 220, 0.25);
+  color: #e4f0ff;
+  cursor: pointer;
+}
+
+.controls button:hover {
+  background: rgba(66, 132, 220, 0.38);
+}
+
+.actor-login {
+  position: fixed;
+  top: 1.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(430px, calc(100vw - 2rem));
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 16px;
+  background: rgba(246, 250, 255, 0.9);
+  color: #24354d;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 10px 36px rgba(8, 20, 48, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  z-index: 6;
+}
+
+.actor-login label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.45rem;
+  color: #31496a;
+  font-weight: 600;
+}
+
+.actor-login-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+}
+
+.actor-login input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(102, 136, 182, 0.38);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  color: #20324d;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.actor-login button {
+  border: 1px solid rgba(66, 132, 220, 0.6);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2e7cf1 0%, #0f63dd 100%);
+  color: #f6fbff;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.actor-login button:hover {
+  filter: brightness(1.04);
+}
+
+.actor-status {
+  margin: 0.45rem 0 0;
+  min-height: 1.1rem;
+  font-size: 0.8rem;
+  color: #425f87;
+}
+
+.actor-page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.actor-card {
+  width: min(560px, 96vw);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 18px;
+  background: rgba(246, 250, 255, 0.92);
+  color: #24354d;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 10px 40px rgba(5, 18, 45, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: 1.2rem 1.1rem 1rem;
+}
+
+.actor-card h1 {
+  margin: 0 0 0.65rem;
+  font-size: 1.25rem;
+}
+
+.actor-info-status {
+  margin: 0 0 0.8rem;
+  color: #405d86;
+}
+
+.actor-details {
+  margin: 0 0 1rem;
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.45rem 0.7rem;
+}
+
+.actor-details dt {
+  color: #516b91;
+  font-weight: 600;
+}
+
+.actor-details dd {
+  margin: 0;
+  color: #213652;
+}
+
+.actor-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+#actor-login-config,
+#actor-logout {
+  border: 1px solid rgba(66, 132, 220, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2e7cf1 0%, #0f63dd 100%);
+  color: #f6fbff;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+#actor-login-config:hover,
+#actor-logout:hover {
+  filter: brightness(1.04);
+}
+

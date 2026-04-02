@@ -1,0 +1,22 @@
+{
+  "actor": {
+    "id": "ray",
+    "email": "ray.jimenez@me.com"
+  },
+  "web_config": [
+    {
+      "base_url": "*",
+      "attributes": {
+        "mode": "interactive",
+        "poster": "default",
+        "controls": true,
+        "params": {
+          "rotationSpeed": -0.3,
+          "starsDensity": 1.0,
+          "starsBrightness": 1.0
+        }
+      }
+    }
+  ]
+}
+

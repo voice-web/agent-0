@@ -14,7 +14,6 @@ services:
     image: "local/default-api-json:0.0.1"
     environment:
       PORT: "8080"
-      # Local is path-routed behind the same origin; allow '*' as a safe baseline.
       CORS_ALLOW_ORIGINS: "*"
     networks:
       - wc-net
@@ -31,5 +30,4 @@ services:
 networks:
   wc-net:
     external: true
-    name: "wc-127-0-0-1-net"
-
+    name: "wc-oci-vm-net"

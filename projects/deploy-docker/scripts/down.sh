@@ -14,14 +14,17 @@ fi
 
 ENVIRONMENT="${1:-}"
 if [[ -z "$ENVIRONMENT" ]]; then
-  echo "Usage: $0 [--volumes] <127.0.0.1>" >&2
+  echo "Usage: $0 [--volumes] <127.0.0.1|oci-vm>" >&2
   exit 2
 fi
 
-if [[ "$ENVIRONMENT" != "127.0.0.1" ]]; then
-  echo "This reference script currently supports environment: 127.0.0.1" >&2
-  exit 2
-fi
+case "$ENVIRONMENT" in
+  127.0.0.1 | oci-vm) ;;
+  *)
+    echo "This reference script currently supports environments: 127.0.0.1, oci-vm" >&2
+    exit 2
+    ;;
+esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
