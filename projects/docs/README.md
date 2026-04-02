@@ -24,6 +24,8 @@ Add a row for every doc you care about tracking. Paths are relative to **`projec
 |-------|------|---------|
 | Cloud VM setup (Oracle first pass) | `oracle-vm-setup.md` | Cloud-agnostic baseline + Oracle: git, Docker CE, tool manager, OCI CLI, repos + symlinks, rollback |
 | Deploy — VAP (Caddy + basic-http) | `deploy-vap.md` | First-pass deploy + undo flow; planned helper scripts for build/start/teardown |
+| VAP platform — prototype pattern | `vap-platform-prototype.md` | Master meta-schema, **Schema** registry first, then domain entities; OpenAPI-only contracts, file store, faux broker |
+| Nmap open ports (worldcliques.org) | `nmap-open-ports.md` | Captured Nmap output (2026-03-31) listing open TCP services + some NSE findings |
 
 ---
 
@@ -44,3 +46,6 @@ Add a row for every doc you care about tracking. Paths are relative to **`projec
 | 2026-03-30 | Expanded both docs with first-pass setup/undo steps and tomorrow planning checklist. |
 | 2026-03-31 | VM doc: step 5 uses repos + symlinks instead of a fixed on-disk `sites/` layout. |
 | 2026-03-31 | VM doc: accounts moved to step 2 (after SSH/update); steps renumbered. |
+| 2026-03-31 | Added **`vap-platform-prototype.md`** (contracts, file store, faux broker); indexed. |
+| 2026-03-31 | VAP prototype doc: **Schema** meta-entity + **master schema** first; Directory after registry. |
+| 2026-04-02 | Converted `nmap-open-ports.txt` into `nmap-open-ports.md` and indexed. |

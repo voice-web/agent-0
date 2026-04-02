@@ -1,0 +1,37 @@
+services:
+  caddy:
+    image: "local/caddy:2.8.4"
+    ports:
+      - "80:80"
+    volumes:
+      - ../examples/routing/Caddyfile-127.0.0.1:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - keycloak
+    networks:
+      - wc-net
+    restart: unless-stopped
+
+  keycloak:
+    image: "local/keycloak:26.0.5"
+    command: ["start-dev"]
+    env_file:
+      - "${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/127.0.0.1/keycloak.env}"
+    environment:
+      KC_PROXY: "edge"
+      KC_HTTP_RELATIVE_PATH: "/auth"
+      KC_HOSTNAME: "127.0.0.1"
+    networks:
+      - wc-net
+    restart: unless-stopped
+
+networks:
+  wc-net:
+    name: "wc-127-0-0-1-net"
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
