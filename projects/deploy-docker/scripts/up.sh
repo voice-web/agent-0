@@ -178,20 +178,31 @@ GLOB
     )
   fi
 
-  local ui_site=""
+  local login_block=""
   if [[ "$GLOBE_LANDING_ENABLED" == "true" ]]; then
-    ui_site="ui.worldcliques.org {${tls_line}
-	encode zstd gzip
-	reverse_proxy globe-landing:8080
-}
-
-"
+    login_block='
+	# /login* on apex + subdomains -> globe-landing (prefix stripped like /ui on local)
+	handle_path /login/* {
+		reverse_proxy globe-landing:8080
+	}
+	handle_path /login {
+		reverse_proxy globe-landing:8080
+	}
+'
+  else
+    login_block='
+	# globe-landing disabled by environment config
+	@login path /login*
+	handle @login {
+		respond "globe-landing disabled" 404
+	}
+'
   fi
 
   cat >"$out_file" <<EOF
 ${global_block}# oci-vm: host + path routing on :80 and :443 (auto HTTPS when not using tls internal).
 # Wildcard *.worldcliques.org: public ACME may require DNS-01; set WC_CADDY_TLS=internal for lab.
-${ui_site}api.worldcliques.org {${tls_line}
+api.worldcliques.org {${tls_line}
 	encode zstd gzip
 	reverse_proxy default-api-json:8080
 }
@@ -203,13 +214,7 @@ auth.worldcliques.org {${tls_line}
 
 worldcliques.org, *.worldcliques.org {${tls_line}
 	encode zstd gzip
-
-	@login path_regexp kc_login ^/login(.*)\$
-	handle @login {
-		rewrite * /auth{re.kc_login.1}
-		reverse_proxy keycloak:8080
-	}
-
+${login_block}
 	handle {
 		reverse_proxy default-html:8080
 	}
@@ -443,9 +448,10 @@ elif [[ "$ENVIRONMENT" == "oci-vm" ]]; then
   echo "- api.worldcliques.org -> default-api-json"
   echo "- auth.worldcliques.org -> keycloak (/auth on upstream)"
   echo "- worldcliques.org and *.worldcliques.org -> default-html"
-  echo "- worldcliques.org/login* and *.worldcliques.org/login* -> keycloak (rewritten to /auth*)"
   if [[ "$GLOBE_LANDING_ENABLED" == "true" ]]; then
-    echo "- ui.worldcliques.org -> globe-landing (when enabled in config)"
+    echo "- worldcliques.org/login* and *.worldcliques.org/login* -> globe-landing"
+  else
+    echo "- /login* on wc hosts -> 404 (globe-landing disabled in config)"
   fi
 fi
 

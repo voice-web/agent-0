@@ -130,6 +130,8 @@ Compose:
 
 Caddyfile is written to `.generated/Caddyfile-oci-vm` when you start **infra** (same as local). Reference copy: `examples/routing/Caddyfile-oci-vm`.
 
+**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak; `worldcliques.org` and `*.worldcliques.org` → default HTML; **`/login` and `/login/*` on those hosts → globe-landing** when `globe-landing` is enabled in `configs/oci-vm.json` (Caddy strips the `/login` prefix for the upstream, same idea as `/ui` on local).
+
 **DNS (typical):** point `A`/`AAAA` for `worldcliques.org`, `api`, `auth`, and `*` (wildcard) to the VM as your design requires. **TLS:** default Caddy automatic HTTPS needs resolvable names and reachable :80/:443; `*.worldcliques.org` may require DNS-01. For testing without public DNS, set `WC_CADDY_TLS=internal` before `up.sh` so the generated Caddyfile uses `tls internal`.
 
 Optional:

@@ -14,11 +14,12 @@ auth.worldcliques.org {
 worldcliques.org, *.worldcliques.org {
 	encode zstd gzip
 
-	# /login* on apex + subdomains -> Keycloak (KC_HTTP_RELATIVE_PATH=/auth)
-	@login path_regexp kc_login ^/login(.*)$
-	handle @login {
-		rewrite * /auth{re.kc_login.1}
-		reverse_proxy keycloak:8080
+	# /login* on apex + subdomains -> globe-landing (prefix stripped for asset paths)
+	handle_path /login/* {
+		reverse_proxy globe-landing:8080
+	}
+	handle_path /login {
+		reverse_proxy globe-landing:8080
 	}
 
 	handle {

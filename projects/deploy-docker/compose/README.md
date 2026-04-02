@@ -25,8 +25,8 @@ Caddy listens on **:80** and **:443** (automatic HTTPS for the public hostnames 
 - `api.worldcliques.org` → `default-api-json`
 - `auth.worldcliques.org` → `keycloak` (paths include `/auth` per `KC_HTTP_RELATIVE_PATH`)
 - `worldcliques.org` and `*.worldcliques.org` → `default-html`
-- `worldcliques.org/login*` and `*.worldcliques.org/login*` → `keycloak` (rewritten to `/auth*`)
-- When `globe-landing` is enabled in config: `ui.worldcliques.org` → `globe-landing`
+- `worldcliques.org/login*` and `*.worldcliques.org/login*` → `globe-landing` (**when enabled** in config; prefix `/login` is stripped like local `/ui`)
+- Keycloak remains on `auth.worldcliques.org` (and `/auth` paths there)
 
 Wildcard public certificates often need **DNS-01** with your ACME provider; for a lab VM use `WC_CADDY_TLS=internal` and trust Caddy’s local CA (or use `/etc/hosts` + browser exceptions).
 

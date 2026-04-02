@@ -9,7 +9,7 @@
       "enabled": true
     },
     "globe-landing": {
-      "enabled": false
+      "enabled": true
     }
   }
 }
