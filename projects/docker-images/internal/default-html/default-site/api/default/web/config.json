@@ -11,12 +11,18 @@
         "poster": "default",
         "controls": false,
         "params": {
-          "rotationSpeed": 0,
-          "starsDensity": 1.0,
-          "starsBrightness": 1.0
+          "rotationSpeed": -0.3,
+          "starsDensity": 1,
+          "starsBrightness": 1,
+          "brightness": 1.31,
+          "contrast": 1.42,
+          "saturation": 1.57,
+          "waterLift": 0.7,
+          "lonOffset": 85,
+          "latOffset": -6,
+          "viewYaw": -3311.38
         }
       }
     }
   ]
 }
-

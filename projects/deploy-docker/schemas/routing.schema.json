@@ -6,7 +6,25 @@
   "required": ["schema_version", "mode"],
   "properties": {
     "schema_version": { "type": "string" },
-    "mode": { "enum": ["local_path", "vm_host", "local_ports"] },
+    "mode": {
+      "enum": ["local_path", "vm_host", "local_ports", "tools_standalone"],
+      "description": "tools_standalone: no Caddy/Keycloak; single tools container on tool_port (see deployments/local-tools-127)."
+    },
+    "tool_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Host port for tools_standalone (published to recon-lab:8080)."
+    },
+    "attach_networks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional external Docker networks to attach (e.g. wc-local-ports-127-net) so the tool can reach default-html:8080 by service name."
+    },
+    "host_gateway": {
+      "type": "boolean",
+      "description": "If true, add extra_hosts host.docker.internal:host-gateway for tools_standalone."
+    },
     "service_ports": {
       "type": "object",
       "description": "For local_ports: logical service name → host port (Caddy publishes one listener per port).",

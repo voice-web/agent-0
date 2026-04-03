@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.6] - 2026-04-03
+- Fix response hardening middleware: Starlette `MutableHeaders` has no `pop()` in some versions; remove `server` / `x-powered-by` by key iteration instead.
+
+## [0.0.5] - 2026-04-03
+- Run uvicorn with `--no-server-header` and strip residual `Server` / `X-Powered-By` in middleware; set `X-Content-Type-Options: nosniff` when absent.
+
+## [0.0.4] - 2026-04-03
+- Remove HTML and inline-style comments from `index.html` and `error.html` so served pages do not expose deployment hints in markup.
+
+## [0.0.3] - 2026-04-02
+- Align globe with globe-landing: static `config/defaults.json` (tone, calibration, stars), matching `STATIC_GLOBE_DEFAULTS` fallback in `js/globe.js`.
+- Apply earth texture tone pass, lit `MeshStandardMaterial`, view yaw + rotation speed, and starfield density/brightness matching globe-landing’s formulas.
+- Update stub `api/default/web/config.json` params to the same values.
+
 ## [0.0.2] - 2026-04-02
 - Ship `default-site/assets/earth-equirect.jpg` in the image so the globe texture works when no assets volume is mounted.
 

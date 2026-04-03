@@ -1,24 +1,77 @@
-// Minimal globe + starfield for default-html.
-// - Generates two CSS star layers via data-URLs (near/far) using the same mechanism as globe-landing.
-// - Renders a rotating Earth sphere if `assets/earth-equirect.jpg` is present.
-//
-// This intentionally has no actor/login UI and no in-page configuration controls.
+// Minimal globe + starfield for default-html (aligned with globe-landing defaults).
+// Loads tone / calibration / stars from static `config/defaults.json`, with the same
+// object inlined below as fallback if fetch fails.
 
 import * as THREE from "three";
 
 const GLOBE_SEL = ".globe";
 const EARTH_TEXTURE_URL = "assets/earth-equirect.jpg";
 
-const DEFAULTS = {
-  // Use baked defaults aligned with globe-landing's default config.
-  // (In full app these normally come from config/api-driven settings.)
-  rotationSpeed: 0.0,
-  starsDensity: 1.43,
-  starsBrightness: 1.25,
+/** Inlined copy of `config/defaults.json` — keep in sync when changing defaults. */
+const STATIC_GLOBE_DEFAULTS = {
+  tone: {
+    brightness: 1.31,
+    contrast: 1.42,
+    saturation: 1.57,
+    waterLift: 0.7,
+  },
+  calibration: {
+    lonOffsetDeg: 85,
+    latOffsetDeg: -6,
+    rotationSpeed: -0.3,
+    viewYawDeg: -3311.38,
+  },
+  stars: {
+    density: 1,
+    brightness: 1,
+  },
 };
+
+const SPHERE_RADIUS = 1;
+const FIELD_OF_VIEW_DEG = 40;
+const TILT_MARGIN = 1.08;
 
 function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+}
+
+function numOr(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+async function loadDefaultsFromFile() {
+  try {
+    const response = await fetch("config/defaults.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const base = STATIC_GLOBE_DEFAULTS;
+    return {
+      tone: {
+        brightness: numOr(data?.tone?.brightness, base.tone.brightness),
+        contrast: numOr(data?.tone?.contrast, base.tone.contrast),
+        saturation: numOr(data?.tone?.saturation, base.tone.saturation),
+        waterLift: numOr(data?.tone?.waterLift, base.tone.waterLift),
+      },
+      calibration: {
+        lonOffsetDeg: numOr(data?.calibration?.lonOffsetDeg, base.calibration.lonOffsetDeg),
+        latOffsetDeg: numOr(data?.calibration?.latOffsetDeg, base.calibration.latOffsetDeg),
+        rotationSpeed: numOr(data?.calibration?.rotationSpeed, base.calibration.rotationSpeed),
+        viewYawDeg: numOr(data?.calibration?.viewYawDeg, base.calibration.viewYawDeg),
+      },
+      stars: {
+        density: numOr(data?.stars?.density, base.stars.density),
+        brightness: numOr(data?.stars?.brightness, base.stars.brightness),
+      },
+    };
+  } catch (error) {
+    console.warn("default-html globe: using inlined defaults (config/defaults.json unavailable):", error);
+    return {
+      tone: { ...STATIC_GLOBE_DEFAULTS.tone },
+      calibration: { ...STATIC_GLOBE_DEFAULTS.calibration },
+      stars: { ...STATIC_GLOBE_DEFAULTS.stars },
+    };
+  }
 }
 
 function makeStarLayerDataUrl(width, height, count, sizeRange, alphaRange) {
@@ -45,21 +98,20 @@ function makeStarLayerDataUrl(width, height, count, sizeRange, alphaRange) {
   return canvas.toDataURL("image/png");
 }
 
-function setStarsCssVars({ density, brightness }) {
-  document.documentElement.style.setProperty("--stars-brightness", Number(brightness).toFixed(2));
+function applyStars(stars) {
+  document.documentElement.style.setProperty("--stars-density", stars.density.toFixed(2));
+  document.documentElement.style.setProperty("--stars-brightness", stars.brightness.toFixed(2));
 
   const w = Math.max(window.innerWidth || 1280, 1280);
   const h = Math.max(window.innerHeight || 720, 720);
-  const densityScale = Math.max(0.5, Math.min(2, Number(density)));
+  const densityScale = Math.max(0.5, Math.min(2, stars.density));
 
-  // Two layers: fewer/smaller for far, slightly larger/more opaque for near.
-  const farCount = Math.round(180 * densityScale);
   const nearCount = Math.round(260 * densityScale);
+  const farCount = Math.round(420 * densityScale);
 
-  const farDataUrl = makeStarLayerDataUrl(w, h, farCount, [0.6, 1.4], [0.08, 0.42]);
-  const nearDataUrl = makeStarLayerDataUrl(w, h, nearCount, [0.8, 1.9], [0.14, 0.6]);
+  const nearDataUrl = makeStarLayerDataUrl(w, h, nearCount, [0.7, 2.0], [0.28, 0.95]);
+  const farDataUrl = makeStarLayerDataUrl(w, h, farCount, [0.35, 1.2], [0.18, 0.7]);
 
-  // CSS expects `background-image: var(--stars-layer-far)`, so we set vars to url(...)
   document.documentElement.style.setProperty(
     "--stars-layer-far",
     farDataUrl ? `url("${farDataUrl}")` : "none"
@@ -70,46 +122,137 @@ function setStarsCssVars({ density, brightness }) {
   );
 }
 
-function computeCameraDistanceToFitSphere(camera, sphereRadius) {
-  // Keep simple: pick distance from vertical FOV.
+function minDistanceForSphereToFitView(camera, radius) {
   const vFov = THREE.MathUtils.degToRad(camera.fov);
-  return sphereRadius / Math.sin(vFov / 2);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+  const dVert = radius / Math.sin(vFov / 2);
+  const dHoriz = radius / Math.sin(hFov / 2);
+  return Math.max(dVert, dHoriz);
+}
+
+/**
+ * Boost land/water separation and coastline readability (same idea as globe-landing).
+ */
+function enhanceEarthTexture(texture, tone) {
+  const img = texture.image;
+  if (!img || !img.width || !img.height) return texture;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return texture;
+
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  const { brightness, contrast, saturation, waterLift } = tone;
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i] / 255;
+    let g = data[i + 1] / 255;
+    let b = data[i + 2] / 255;
+
+    r *= brightness;
+    g *= brightness;
+    b *= brightness;
+
+    r = (r - 0.5) * contrast + 0.5;
+    g = (g - 0.5) * contrast + 0.5;
+    b = (b - 0.5) * contrast + 0.5;
+
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    r = luma + (r - luma) * saturation;
+    g = luma + (g - luma) * saturation;
+    b = luma + (b - luma) * saturation;
+
+    const blueDominance = Math.max(0, b - Math.max(r, g));
+    const greenVsRed = g - r;
+    const waterMask = Math.max(0, Math.min(1, blueDominance * 2.8 + greenVsRed * 0.9));
+    const lift = waterLift * waterMask;
+
+    r = Math.min(1, r + lift * 0.22);
+    g = Math.min(1, g + lift * 0.55);
+    b = Math.min(1, b + lift * 1.0);
+
+    data[i] = Math.max(0, Math.min(255, Math.round(r * 255)));
+    data[i + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
+    data[i + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  ctx.filter = "contrast(108%)";
+  ctx.drawImage(canvas, 0, 0);
+
+  const enhanced = new THREE.CanvasTexture(canvas);
+  enhanced.colorSpace = THREE.SRGBColorSpace;
+  enhanced.anisotropy = texture.anisotropy;
+  enhanced.wrapS = THREE.ClampToEdgeWrapping;
+  enhanced.wrapT = THREE.ClampToEdgeWrapping;
+  enhanced.needsUpdate = true;
+  return enhanced;
 }
 
 async function init() {
   const container = document.querySelector(GLOBE_SEL);
   if (!container) return;
 
-  setStarsCssVars({
-    density: DEFAULTS.starsDensity,
-    brightness: DEFAULTS.starsBrightness,
-  });
+  const defaults = await loadDefaultsFromFile();
+  applyStars(defaults.stars);
 
-  // Create renderer
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
     powerPreference: "high-performance",
   });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(FIELD_OF_VIEW_DEG, 1, 0.1, 100);
+  camera.position.set(0, 0, 3);
 
-  // Globe mesh
-  const sphereRadius = 1;
-  const geometry = new THREE.SphereGeometry(sphereRadius, 64, 64);
+  const group = new THREE.Group();
+  group.rotation.x = 0.12;
+  group.rotation.y = THREE.MathUtils.degToRad(defaults.calibration.viewYawDeg);
+  scene.add(group);
 
-  // Keep texture un-darkened; use white base color so map renders at intended brightness.
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const earth = new THREE.Mesh(geometry, material);
-  scene.add(earth);
+  const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 96, 64);
 
-  // Load earth texture if available.
-  // If it fails, we still render the mesh (just without texture).
+  const ambient = new THREE.AmbientLight(0x6b7f95, 0.55);
+  scene.add(ambient);
+  const hemi = new THREE.HemisphereLight(0x9fc7ff, 0x1a2f44, 0.35);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.35);
+  sun.position.set(4.5, 1.2, 2.5);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xa7c7e8, 0.62);
+  fill.position.set(-3, -0.5, -2);
+  scene.add(fill);
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x1a3d66,
+    roughness: 0.48,
+    metalness: 0.03,
+  });
+  const earth = new THREE.Mesh(geometry, mat);
+  group.add(earth);
+
+  let sourceTexture = null;
+  function applyTone() {
+    if (!sourceTexture) return;
+    mat.map = enhanceEarthTexture(sourceTexture, defaults.tone);
+    mat.color.setHex(0xffffff);
+    mat.roughness = 0.44;
+    mat.metalness = 0.04;
+    mat.needsUpdate = true;
+  }
+
   const textureLoader = new THREE.TextureLoader();
   try {
     await new Promise((resolve) => {
@@ -117,10 +260,11 @@ async function init() {
         EARTH_TEXTURE_URL,
         (texture) => {
           texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
           texture.wrapS = THREE.ClampToEdgeWrapping;
           texture.wrapT = THREE.ClampToEdgeWrapping;
-          material.map = texture;
-          material.needsUpdate = true;
+          sourceTexture = texture;
+          applyTone();
           resolve(true);
         },
         undefined,
@@ -131,45 +275,47 @@ async function init() {
       );
     });
   } catch (_) {
-    // Ignore texture load errors.
+    // ignore
   }
 
   const reduced = prefersReducedMotion();
+  let rotationSpeed = reduced ? 0 : defaults.calibration.rotationSpeed;
+  const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  mq?.addEventListener?.("change", () => {
+    rotationSpeed = prefersReducedMotion() ? 0 : defaults.calibration.rotationSpeed;
+  });
 
   function resize() {
     const w = Math.max(container.clientWidth, 1);
     const h = Math.max(container.clientHeight, 1);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-
-    const distance = computeCameraDistanceToFitSphere(camera, sphereRadius);
-    camera.position.z = distance * 1.02;
-
+    const d = minDistanceForSphereToFitView(camera, SPHERE_RADIUS) * TILT_MARGIN;
+    camera.position.z = d;
     renderer.setSize(w, h, false);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   }
 
-  // Initial sizing + attach.
   resize();
+  window.addEventListener("resize", () => {
+    resize();
+    applyStars(defaults.stars);
+  });
 
   let last = performance.now();
   function tick(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
 
-    if (!reduced) {
-      earth.rotation.y += DEFAULTS.rotationSpeed * dt;
+    if (!reduced && rotationSpeed !== 0) {
+      group.rotation.y += rotationSpeed * dt;
     }
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }
 
-  window.addEventListener("resize", resize);
   requestAnimationFrame(tick);
 }
 
 init().catch(() => {
-  // If WebGL fails entirely, we still want the CSS starfield to show.
-  // (Star layers were already generated before init started.)
+  // WebGL failed; starfield CSS layers were already applied.
 });
-

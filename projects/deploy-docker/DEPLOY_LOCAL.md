@@ -163,11 +163,39 @@ Optional:
 
 - **`WC_CADDY_ACME_EMAIL`** — embedded in the generated Caddyfile global block when set (ACME account email).
 
+## Validate deployment (HTTP smoke)
+
+After bring-up, **`scripts/validate_deployment.py`** requests each URL in **`resolved.json`** → **`test_routes`** and checks status/body (HTML vs JSON) by route label. **`--compile`** refreshes **`resolved.json`** first. **`--insecure`** skips TLS verification (e.g. **`vm-host-oci`** with internal certs). With **`--head`**, only status codes under **500** are verified (no body checks).
+
+```bash
+python3 scripts/validate_deployment.py local-ports-127
+python3 scripts/validate_deployment.py local-path-127 --compile
+python3 scripts/validate_deployment.py vm-host-oci --insecure
+```
+
+## Tools bundle (`local-tools-127`)
+
+**`routing.mode`: `tools_standalone`** — no edge stack (no Caddy, no Keycloak). Compile emits only **`.generated/local-tools-127/app/docker-compose.yml`** with **`local/recon-lab`** on **`tool_port`** (default **8096**).
+
+```bash
+# Build image first (from docker-images/)
+./scripts/build-local.sh internal/recon-lab
+
+./scripts/up.sh local-tools-127 application
+```
+
+Open **`http://127.0.0.1:8096/`** for the web UI. Enter a target URL the container can reach:
+
+- **`http://host.docker.internal:8092/`** — host-published **default-html** (requires **`host_gateway`: true**, the default)
+- **`http://default-html:8080/`** — add **`wc-local-ports-127-net`** to **`attach_networks`** in **`deployments/local-tools-127/routing.json`** after **`local-ports-127`** infra+app is up (so the tool shares that network)
+
+**`recon-lab`** accepts **any** **http** / **https** URL. Set **`RECON_TLS_INSECURE=1`** on the service to skip certificate verification (e.g. internal TLS).
+
 ## Reference files (for review)
 
-- **Sources:** `deployments/local-path-127/`, `deployments/local-ports-127/`, `deployments/vm-host-oci/`, `schemas/`
+- **Sources:** `deployments/local-path-127/`, `deployments/local-ports-127/`, `deployments/local-tools-127/`, `deployments/vm-host-oci/`, `schemas/`
 - **Compiler:** `scripts/compile.py`
-- **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`, `scripts/resolve_keycloak_env.py`
+- **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`, `scripts/resolve_keycloak_env.py`, `scripts/validate_deployment.py`
 - **Outputs (local, not in git):** `.generated/<sanitized deployment_id>/` — `Caddyfile`, `edge/docker-compose.yml`, `app/docker-compose.yml`, `resolved.json` (see **`deployment.json`** → **`deployment_id`**; usually matches the bundle dirname)
 
 ## Bring down
@@ -195,7 +223,7 @@ This also removes named volumes like Caddy’s TLS/ACME storage and Keycloak per
 If you rebuilt an image (even with the same tag) and want to refresh a single running container:
 
 ```bash
-./scripts/update.sh <infra|application> <deployment-dirname> <service>
+./scripts/update.sh <infra|application> <deployment-dirname> <service> [<image_tag_or_image>]
 ```
 
 Example:
@@ -204,8 +232,17 @@ Example:
 ./scripts/update.sh application local-path-127 globe-landing
 ```
 
+Try a different image tag **without** editing `services.json` (one-off compose override):
+
+```bash
+./scripts/update.sh application local-ports-127 default-html 0.0.6
+# or full reference:
+./scripts/update.sh application local-ports-127 default-html local/default-html:0.0.6
+```
+
 What this does:
 - validates that the service exists in the selected manifest compose file
+- optional 4th argument: temporary `image:` override merged for this `docker compose` run only (`services.json` and generated compose stay unchanged)
 - runs `docker compose up -d --no-deps --force-recreate <service>`
 - recreates only that one container, which picks up the rebuilt local image tag
 

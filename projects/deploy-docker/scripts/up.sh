@@ -101,13 +101,16 @@ GENDIR="$(python3 "$ROOT_DIR/scripts/bundle_paths.py" gendir "$DEPLOYMENT_DIRNAM
 RESOLVED="$GENDIR/resolved.json"
 
 EDGE_PROJECT="$(
-  python3 -c "import json; print(json.load(open('$RESOLVED'))['compose_projects']['edge'])"
+  python3 -c "import json; p=json.load(open('$RESOLVED'))['compose_projects'].get('edge'); print(p if p else '')"
 )"
 APP_PROJECT="$(
   python3 -c "import json; print(json.load(open('$RESOLVED'))['compose_projects']['application'])"
 )"
 EDGE_COMPOSE="$(
-  python3 -c "import json; print(json.load(open('$RESOLVED'))['paths']['edge_compose'])"
+  python3 -c "import json; p=json.load(open('$RESOLVED'))['paths'].get('edge_compose'); print(p if p else '')"
+)"
+BUNDLE_KIND="$(
+  python3 -c "import json; print(json.load(open('$RESOLVED')).get('bundle_kind','standard'))"
 )"
 APP_COMPOSE_REL="$(
   python3 -c "import json; d=json.load(open('$RESOLVED'))['paths'].get('app_compose'); print(d or '')"
@@ -149,13 +152,17 @@ if ! check_images_missing "${IMG_ARR[@]}"; then
 fi
 
 if includes_manifest infra; then
-  if [[ ! -f "$KEYCLOAK_ENV_FILE" ]]; then
-    echo "==> Missing Keycloak env_file: $KEYCLOAK_ENV_FILE" >&2
-    echo "Create it with KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD (see DEPLOY_LOCAL.md)" >&2
-    exit 1
+  if [[ -z "$EDGE_COMPOSE" || ! -f "$EDGE_COMPOSE" ]]; then
+    echo "==> Skipping infra: no edge stack (bundle_kind=$BUNDLE_KIND)"
+  else
+    if [[ ! -f "$KEYCLOAK_ENV_FILE" ]]; then
+      echo "==> Missing Keycloak env_file: $KEYCLOAK_ENV_FILE" >&2
+      echo "Create it with KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD (see DEPLOY_LOCAL.md)" >&2
+      exit 1
+    fi
+    echo "==> docker compose up (edge): project=$EDGE_PROJECT"
+    docker compose -p "$EDGE_PROJECT" -f "$EDGE_COMPOSE" up -d
   fi
-  echo "==> docker compose up (edge): project=$EDGE_PROJECT"
-  docker compose -p "$EDGE_PROJECT" -f "$EDGE_COMPOSE" up -d
 fi
 
 if includes_manifest application; then
@@ -165,9 +172,11 @@ if includes_manifest application; then
     NET_NAME="$(
       python3 -c "import json; print(json.load(open('$RESOLVED'))['network_name'])"
     )"
-    if ! docker network inspect "$NET_NAME" >/dev/null 2>&1; then
-      echo "Network '$NET_NAME' not found. Run infra first." >&2
-      exit 1
+    if [[ "$BUNDLE_KIND" != "tools" ]]; then
+      if ! docker network inspect "$NET_NAME" >/dev/null 2>&1; then
+        echo "Network '$NET_NAME' not found. Run infra first." >&2
+        exit 1
+      fi
     fi
     echo "==> docker compose up (application): project=$APP_PROJECT"
     docker compose -p "$APP_PROJECT" -f "$APP_COMPOSE_REL" up -d
@@ -177,7 +186,7 @@ fi
 echo "OK"
 echo
 echo "==> Generated: $GENDIR — see resolved.json"
-echo "    Edge project: $EDGE_PROJECT"
+echo "    Edge project: ${EDGE_PROJECT:-—}"
 echo "    App project:  $APP_PROJECT"
 
 python3 "$ROOT_DIR/scripts/print_routes.py" "$DEPLOYMENT_DIRNAME"

@@ -22,7 +22,7 @@ From `projects/docker-images`:
 ## Run
 
 ```bash
-docker run --rm -p 8080:8080 local/globe-landing:0.0.1
+docker run --rm -p 8080:8080 local/globe-landing:0.0.2
 ```
 
 Open:

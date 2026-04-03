@@ -359,6 +359,67 @@ def write_app_compose(
     return [s["name"] for s in selected]
 
 
+def write_tools_bundle_compose(
+    out: Path,
+    services_manifest: dict,
+    deployment_id: str,
+    routing: dict,
+    config: dict,
+) -> list[str]:
+    """Standalone tools stack: primary bridge + optional external networks."""
+    selected: list[dict] = []
+    for svc in services_manifest["application"]:
+        opt = svc.get("optional")
+        flag = svc.get("config_flag") or svc["name"]
+        if opt and not service_enabled(config, flag, default=True):
+            continue
+        selected.append(svc)
+    if not selected:
+        return []
+    tool_port = int(routing.get("tool_port") or 8096)
+    attach = [str(x) for x in (routing.get("attach_networks") or []) if x]
+    use_host_gw = bool(routing.get("host_gateway", True))
+    primary_net = "wc_tool_net"
+
+    lines = ["services:"]
+    for svc in selected:
+        name = svc["name"]
+        lines.append(f"  {name}:")
+        lines.append(f'    image: "{svc["image"]}"')
+        env = svc.get("environment") or {}
+        if env:
+            lines.append("    environment:")
+            for k, v in env.items():
+                lines.append(f"      {k}: {json.dumps(str(v))}")
+        lines.append("    ports:")
+        lines.append(f'      - "{tool_port}:8080"')
+        if use_host_gw:
+            lines.append("    extra_hosts:")
+            lines.append('      - "host.docker.internal:host-gateway"')
+        lines.append("    networks:")
+        lines.append(f"      - {primary_net}")
+        for i, _ext in enumerate(attach):
+            lines.append(f"      - wc_attach_{i}")
+        lines.append("    labels:")
+        lines.append(f'      worldcliques.deployment: "{deployment_id}"')
+        lines.append('      worldcliques.role: "tools"')
+        lines.append(f'      worldcliques.service: "{name}"')
+        if svc.get("restart"):
+            lines.append(f"    restart: {svc['restart']}")
+    lines.append("")
+    lines.append("networks:")
+    lines.append(f"  {primary_net}:")
+    lines.append("    driver: bridge")
+    lines.append(f"    name: {json.dumps(services_manifest['network_name'])}")
+    for i, ext in enumerate(attach):
+        lines.append(f"  wc_attach_{i}:")
+        lines.append("    external: true")
+        lines.append(f"    name: {json.dumps(ext)}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return [s["name"] for s in selected]
+
+
 def _keycloak_env(services_manifest: dict) -> dict:
     for svc in services_manifest["edge"]:
         if svc["name"] == "keycloak":
@@ -485,12 +546,17 @@ def build_test_routes(
                 }
             )
 
+    elif mode == "tools_standalone":
+        host = str(routing.get("tool_bind_host") or "127.0.0.1")
+        port = int(routing.get("tool_port") or 8096)
+        routes.append({"label": "Recon lab UI", "urls": [f"http://{host}:{port}/"]})
+
     return routes
 
 
 def expected_images(services_manifest: dict, config: dict) -> list[str]:
     imgs = []
-    for svc in services_manifest["edge"]:
+    for svc in services_manifest.get("edge") or []:
         imgs.append(svc["image"])
     for svc in services_manifest["application"]:
         opt = svc.get("optional")
@@ -518,7 +584,14 @@ def compile_deployment(deployment_dir: Path) -> Path:
     caddy_path = out_dir / "Caddyfile"
 
     mode = routing.get("mode")
-    if mode == "local_path":
+    tools_mode = mode == "tools_standalone"
+
+    if tools_mode:
+        caddy_path.write_text(
+            "# No edge stack for tools_standalone (no Caddy/Keycloak).\n",
+            encoding="utf-8",
+        )
+    elif mode == "local_path":
         emit_local_path_caddy(config, caddy_path)
     elif mode == "vm_host":
         ro = config.get("routing") or {}
@@ -540,38 +613,57 @@ def compile_deployment(deployment_dir: Path) -> Path:
 
     caddy_abs = caddy_path.resolve()
     edge_manifest = copy.deepcopy(services_manifest)
-    if mode == "local_ports":
-        merge_ports = {
-            **DEFAULT_LOCAL_SERVICE_PORTS,
-            **(routing.get("service_ports") or {}),
-        }
-        kc_port = int(merge_ports["keycloak"])
-        pub = caddy_publish_ports_for_local_ports(routing)
-        for svc in edge_manifest["edge"]:
-            if svc["name"] == "caddy":
-                svc["ports"] = pub
-            elif svc["name"] == "keycloak":
-                env = dict(svc.get("environment") or {})
-                hn = str(env.get("KC_HOSTNAME", "127.0.0.1"))
-                root = f"http://{hn}:{kc_port}"
-                env["KC_HOSTNAME_URL"] = root
-                env["KC_HOSTNAME_ADMIN_URL"] = root
-                svc["environment"] = env
-    write_edge_compose(
-        out_dir / "edge" / "docker-compose.yml",
-        edge_manifest,
-        edge_manifest["network_name"],
-        deployment_id,
-        caddy_abs,
-    )
+    edge_compose_file = out_dir / "edge" / "docker-compose.yml"
+    edge_compose_resolved: str | None
+
+    if tools_mode:
+        edge_compose_resolved = None
+        if edge_compose_file.is_file():
+            edge_compose_file.unlink()
+    else:
+        if mode == "local_ports":
+            merge_ports = {
+                **DEFAULT_LOCAL_SERVICE_PORTS,
+                **(routing.get("service_ports") or {}),
+            }
+            kc_port = int(merge_ports["keycloak"])
+            pub = caddy_publish_ports_for_local_ports(routing)
+            for svc in edge_manifest["edge"]:
+                if svc["name"] == "caddy":
+                    svc["ports"] = pub
+                elif svc["name"] == "keycloak":
+                    env = dict(svc.get("environment") or {})
+                    hn = str(env.get("KC_HOSTNAME", "127.0.0.1"))
+                    root = f"http://{hn}:{kc_port}"
+                    env["KC_HOSTNAME_URL"] = root
+                    env["KC_HOSTNAME_ADMIN_URL"] = root
+                    svc["environment"] = env
+        write_edge_compose(
+            edge_compose_file,
+            edge_manifest,
+            edge_manifest["network_name"],
+            deployment_id,
+            caddy_abs,
+        )
+        edge_compose_resolved = str(edge_compose_file.resolve())
+
     app_compose_path = out_dir / "app" / "docker-compose.yml"
-    app_service_names = write_app_compose(
-        app_compose_path,
-        services_manifest,
-        services_manifest["network_name"],
-        deployment_id,
-        config,
-    )
+    if tools_mode:
+        app_service_names = write_tools_bundle_compose(
+            app_compose_path,
+            services_manifest,
+            deployment_id,
+            routing,
+            config,
+        )
+    else:
+        app_service_names = write_app_compose(
+            app_compose_path,
+            services_manifest,
+            services_manifest["network_name"],
+            deployment_id,
+            config,
+        )
     app_compose_resolved: str | None
     if not app_service_names:
         if app_compose_path.is_file():
@@ -592,13 +684,14 @@ def compile_deployment(deployment_dir: Path) -> Path:
     paths_obj = {
         "root": str(out_dir.resolve()),
         "caddyfile": str(caddy_abs),
-        "edge_compose": str((out_dir / "edge" / "docker-compose.yml").resolve()),
+        "edge_compose": edge_compose_resolved,
         "app_compose": app_compose_resolved,
     }
 
     resolved = {
         "schema_version": "1.0",
         "deployment_id": deployment_id,
+        "bundle_kind": "tools" if tools_mode else "standard",
         "generated_at": __import__("datetime")
         .datetime.now(__import__("datetime").timezone.utc)
         .isoformat()
@@ -606,7 +699,7 @@ def compile_deployment(deployment_dir: Path) -> Path:
         "paths": paths_obj,
         "network_name": services_manifest["network_name"],
         "compose_projects": {
-            "edge": services_manifest["edge_project"],
+            "edge": None if tools_mode else services_manifest["edge_project"],
             "application": services_manifest["app_project"],
         },
         "routing": routing,

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "network_name": "wc-tool-ports-127-net",
+  "edge_project": "wc-edge-unused",
+  "app_project": "wc-tool-ports-127",
+  "edge": [],
+  "application": [
+    {
+      "name": "recon-lab",
+      "image": "local/recon-lab:0.0.4",
+      "restart": "unless-stopped"
+    }
+  ]
+}

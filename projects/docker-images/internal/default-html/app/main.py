@@ -14,6 +14,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 _ROOT = Path(os.environ.get("BASIC_HTTP_ROOT", "/srv/www")).resolve()
 _PORT = int(os.environ.get("PORT", "8080"))
@@ -58,7 +59,26 @@ def _ensure_root_dir() -> Path:
     return _ROOT
 
 
+def _strip_leaky_response_headers(headers) -> None:
+    """MutableHeaders has no .pop() in some Starlette versions; delete by key."""
+    for key in list(headers.keys()):
+        if key.lower() in ("server", "x-powered-by"):
+            del headers[key]
+
+
 app = FastAPI(title="default-html", version="0.0.1")
+
+
+class _HardenResponseHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        _strip_leaky_response_headers(response.headers)
+        if "x-content-type-options" not in response.headers:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+app.add_middleware(_HardenResponseHeadersMiddleware)
 
 
 @app.get("/health")

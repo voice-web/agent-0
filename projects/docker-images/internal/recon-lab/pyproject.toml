@@ -1,7 +1,7 @@
 [project]
-name = "default-html"
-version = "0.0.4"
-description = "Default HTML container for Worldcliques; includes starfield error page."
+name = "recon-lab"
+version = "0.0.3"
+description = "Authorized local recon / misconfiguration lab UI (not an exploit kit)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,4 +15,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
-
