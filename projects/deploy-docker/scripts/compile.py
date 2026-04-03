@@ -55,9 +55,36 @@ def service_enabled(config: dict, flag: str, default: bool = True) -> bool:
     return bool(o.get("enabled", default))
 
 
+def selected_edge_services(services_manifest: dict, config: dict) -> list[dict]:
+    """Edge services to include in compose; optional entries follow service_overrides."""
+    out: list[dict] = []
+    for svc in services_manifest.get("edge") or []:
+        opt = svc.get("optional")
+        flag = svc.get("config_flag") or svc["name"]
+        if opt and not service_enabled(config, flag, default=True):
+            continue
+        out.append(svc)
+    names = {s["name"] for s in out}
+    fixed: list[dict] = []
+    for svc in out:
+        sc = dict(svc)
+        deps = [d for d in (sc.get("depends_on") or []) if d in names]
+        if deps:
+            sc["depends_on"] = deps
+        else:
+            sc.pop("depends_on", None)
+        fixed.append(sc)
+    return fixed
+
+
 def sanitize(s: str) -> str:
     s = s.lower().replace(".", "-")
     return re.sub(r"[^a-z0-9_-]+", "-", s).strip("-") or "deploy"
+
+
+def compose_container_name(deployment_id: str, service_name: str) -> str:
+    """Stable, human-readable Docker name: {deployment}-{service} (unique per deployment)."""
+    return f"{sanitize(deployment_id)}-{service_name}"
 
 
 def emit_local_path_caddy(config: dict, path: Path) -> None:
@@ -205,17 +232,25 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
 	}
 """
 
-    body = f"""api.worldcliques.org {{{tls_line}
+    api_block = ""
+    if service_enabled(config, "default-api-json", default=True):
+        api_block = f"""api.worldcliques.org {{{tls_line}
 	encode zstd gzip
 	reverse_proxy default-api-json:8080
 }}
 
-auth.worldcliques.org {{{tls_line}
+"""
+
+    auth_block = ""
+    if service_enabled(config, "keycloak", default=True):
+        auth_block = f"""auth.worldcliques.org {{{tls_line}
 	encode zstd gzip
 	reverse_proxy keycloak:8080
 }}
 
-{html_hosts_str} {{{tls_line}
+"""
+
+    body = f"""{api_block}{auth_block}{html_hosts_str} {{{tls_line}
 	encode zstd gzip
 {login_block}\thandle {{
 		reverse_proxy default-html:8080
@@ -245,7 +280,11 @@ def service_yaml(
     role: str,
     caddyfile_abs: Path | None,
 ) -> list[str]:
-    lines = [f"  {name}:", f'    image: "{svc["image"]}"']
+    lines = [
+        f"  {name}:",
+        f"    container_name: {json.dumps(compose_container_name(deployment_id, name))}",
+        f'    image: "{svc["image"]}"',
+    ]
     if svc.get("command"):
         cmd = svc["command"]
         if isinstance(cmd, list):
@@ -385,6 +424,9 @@ def write_tools_bundle_compose(
     for svc in selected:
         name = svc["name"]
         lines.append(f"  {name}:")
+        lines.append(
+            f"    container_name: {json.dumps(compose_container_name(deployment_id, name))}"
+        )
         lines.append(f'    image: "{svc["image"]}"')
         env = svc.get("environment") or {}
         if env:
@@ -495,18 +537,20 @@ def build_test_routes(
                 p = f"{p}/"
             return [f"https://{site}{p}", f"http://{site}{p}"]
 
-        routes.append(
-            {
-                "label": "API (default-api-json)",
-                "urls": host_urls("api.worldcliques.org", "/"),
-            }
-        )
-        routes.append(
-            {
-                "label": "Keycloak",
-                "urls": host_urls("auth.worldcliques.org", auth_path),
-            }
-        )
+        if service_enabled(config, "default-api-json", default=True):
+            routes.append(
+                {
+                    "label": "API (default-api-json)",
+                    "urls": host_urls("api.worldcliques.org", "/"),
+                }
+            )
+        if service_enabled(config, "keycloak", default=True):
+            routes.append(
+                {
+                    "label": "Keycloak",
+                    "urls": host_urls("auth.worldcliques.org", auth_path),
+                }
+            )
         for h in html_hosts:
             routes.append(
                 {"label": f"Default HTML ({h})", "urls": host_urls(h, "/")}
@@ -556,7 +600,7 @@ def build_test_routes(
 
 def expected_images(services_manifest: dict, config: dict) -> list[str]:
     imgs = []
-    for svc in services_manifest.get("edge") or []:
+    for svc in selected_edge_services(services_manifest, config):
         imgs.append(svc["image"])
     for svc in services_manifest["application"]:
         opt = svc.get("optional")
@@ -613,6 +657,8 @@ def compile_deployment(deployment_dir: Path) -> Path:
 
     caddy_abs = caddy_path.resolve()
     edge_manifest = copy.deepcopy(services_manifest)
+    if not tools_mode:
+        edge_manifest["edge"] = selected_edge_services(services_manifest, config)
     edge_compose_file = out_dir / "edge" / "docker-compose.yml"
     edge_compose_resolved: str | None
 
@@ -705,6 +751,7 @@ def compile_deployment(deployment_dir: Path) -> Path:
         "routing": routing,
         "config": config,
         "expected_images": expected_images(services_manifest, config),
+        "edge_service_names": ([] if tools_mode else [s["name"] for s in edge_manifest["edge"]]),
         "application_service_names": app_service_names,
         "test_routes": build_test_routes(mode, routing, config, services_manifest),
     }

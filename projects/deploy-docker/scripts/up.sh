@@ -155,7 +155,10 @@ if includes_manifest infra; then
   if [[ -z "$EDGE_COMPOSE" || ! -f "$EDGE_COMPOSE" ]]; then
     echo "==> Skipping infra: no edge stack (bundle_kind=$BUNDLE_KIND)"
   else
-    if [[ ! -f "$KEYCLOAK_ENV_FILE" ]]; then
+    KC_REQUIRED="$(
+      python3 -c "import json; r=json.load(open('$RESOLVED')); es=r.get('edge_service_names'); print('yes' if (es is None or 'keycloak' in es) else 'no')"
+    )"
+    if [[ "$KC_REQUIRED" == "yes" ]] && [[ ! -f "$KEYCLOAK_ENV_FILE" ]]; then
       echo "==> Missing Keycloak env_file: $KEYCLOAK_ENV_FILE" >&2
       echo "Create it with KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD (see DEPLOY_LOCAL.md)" >&2
       exit 1
