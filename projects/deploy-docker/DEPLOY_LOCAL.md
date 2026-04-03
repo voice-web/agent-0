@@ -27,8 +27,8 @@ You can use either:
 
 Expected:
 - starts `caddy` and `keycloak`
-- creates/uses docker network `wc-127.0.0.1-net`
-- Caddy uses `examples/routing/Caddyfile-127.0.0.1`
+- creates/uses docker network `wc-127-0-0-1-net`
+- Caddy bind-mounts **`.generated/local-path-127/Caddyfile`** (created by `compile.py` on each `up.sh`)
 
 ### Bring up application only (infra must already be up)
 
@@ -43,12 +43,12 @@ Expected:
 ```
 
 Expected:
-- starts `default-html` and `default-api-json`
-- attaches them to the same docker network `wc-127.0.0.1-net`
+- starts `default-html` and `default-api-json` (and other enabled app services)
+- attaches them to the same docker network **`wc-127-0-0-1-net`**
 
 ## Service enable/disable flags (environment config)
 
-Use `configs/127.0.0.1.json` to conditionally deploy logical services without removing them.
+Use **`deployments/local-path-127/config.json`** (`service_overrides`) to conditionally deploy logical services without removing them from the bundle.
 
 Current supported flags:
 - `service_overrides.default-html.enabled`
@@ -111,7 +111,7 @@ If you want a different location, set `KEYCLOAK_ENV_FILE` before running `./scri
 
 ## oci-vm (Oracle VM / public DNS)
 
-Use the same script shapes, swapping the environment name:
+Deployment bundle: **`vm-host-oci`** (alias **`oci-vm`**). Same script shapes:
 
 ```bash
 ./scripts/up.sh oci-vm infra application
@@ -121,42 +121,26 @@ Secrets file (default):
 
 `~/.secrets/worldcliques/oci-vm/keycloak.env`
 
-Config flags:
+Config and flags: **`deployments/vm-host-oci/config.json`** (`service_overrides`, optional **`routing.html_hosts`** merged over **`deployments/vm-host-oci/routing.json`**).
 
-`configs/oci-vm.json`
+Generated artifacts (after compile / `up`): **`.generated/vm-host-oci/Caddyfile`**, **`.generated/vm-host-oci/edge/docker-compose.yml`**, **`.generated/vm-host-oci/app/docker-compose.yml`**, shared network **`wc-oci-vm-net`** (see `services.json` → `network_name`).
 
-Compose:
-
-- `compose/infra-oci-vm.yml` — Caddy **80+443**, Keycloak (public URLs for admin + realms via **`KC_HOSTNAME_URL`** / **`KC_HOSTNAME_ADMIN_URL`**, default **`https://auth.worldcliques.org/auth`**; Caddy terminates TLS, Keycloak uses **`KC_PROXY_HEADERS=xforwarded`** and **`KC_HTTP_ENABLED=true`**)
-- `compose/application-oci-vm.yml` — app services on `wc-oci-vm-net`
-
-Caddyfile is written to `.generated/Caddyfile-oci-vm` when you start **infra** (same as local). Reference copy: `examples/routing/Caddyfile-oci-vm`.
-
-**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak. **Default HTML:** only **explicit** hostnames (default **`worldcliques.org`**). When **`globe-landing`** is enabled in `configs/oci-vm.json`, **`/login`** is redirected to **`/login/`** and **`/login/*`** goes to globe-landing (prefix stripped). When disabled, **`/login`** is just another path on default-html.
+**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak. **Default HTML:** only **explicit** hostnames in **`routing.html_hosts`** (default **`worldcliques.org`**). When **`globe-landing`** is enabled in config, **`/login`** on those hosts is redirected to **`/login/`** and **`/login/*`** goes to globe-landing (prefix stripped). When disabled, **`/login`** is served by default-html like any other path.
 
 **Keycloak public URL:** defaults to **`https://auth.worldcliques.org/auth`**. If you run **HTTP-only** or a different edge URL, set **`KEYCLOAK_PUBLIC_URL`** before compose (same value used for **`KC_HOSTNAME_URL`** and **`KC_HOSTNAME_ADMIN_URL`**), e.g. `export KEYCLOAK_PUBLIC_URL='http://auth.worldcliques.org/auth'`.
 
-**DNS (typical):** create **`A`/`AAAA`** for each name Caddy serves: at minimum **`worldcliques.org`**, **`api`**, **`auth`**. Add **`www.worldcliques.org`** (and any other vhosts) by setting **`WC_OCI_HTML_HOSTS`** (comma-separated) before `up.sh` so TLS is only requested for names you have in DNS. **TLS:** HTTP-01 needs resolvable names and reachable :80/:443. For testing without public DNS, set `WC_CADDY_TLS=internal` before `up.sh` so the generated Caddyfile uses `tls internal`.
+**DNS (typical):** create **`A`/`AAAA`** for each name Caddy serves: at minimum **`worldcliques.org`**, **`api`**, **`auth`**. Add more HTML vhosts (e.g. **`www.worldcliques.org`**) by listing them in **`deployments/vm-host-oci/config.json`** → **`routing.html_hosts`** so TLS is only requested for names you own in DNS. **TLS:** HTTP-01 needs resolvable names and reachable :80/:443. For testing without public DNS, set **`WC_CADDY_TLS=internal`** before `up.sh` so the generated Caddyfile uses **`tls internal`**.
 
 Optional:
 
-- `WC_CADDY_ACME_EMAIL` — set globally in the generated Caddyfile for ACME registration.
-- `WC_OCI_HTML_HOSTS` — e.g. `worldcliques.org, www.worldcliques.org` (comma-separated site addresses for default-html and optional `/login`).
+- **`WC_CADDY_ACME_EMAIL`** — embedded in the generated Caddyfile global block when set (ACME account email).
 
 ## Reference files (for review)
 
-Script:
-- `scripts/up.sh`
-
-Infra compose:
-- `compose/infra-127.0.0.1.yml`
-
-Application compose:
-- `compose/application-127.0.0.1.yml`
-
-Caddy local routing:
-- `examples/routing/Caddyfile-127.0.0.1`
-- `examples/routing/Caddyfile-oci-vm` (reference; generated file preferred for oci-vm)
+- **Sources:** `deployments/local-path-127/`, `deployments/vm-host-oci/`, `schemas/`
+- **Compiler:** `scripts/compile.py`
+- **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`
+- **Outputs (local, not in git):** `.generated/<deployment_id>/` — `Caddyfile`, `edge/docker-compose.yml`, `app/docker-compose.yml`, `resolved.json`
 
 ## Bring down
 

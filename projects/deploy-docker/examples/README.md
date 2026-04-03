@@ -1,7 +1,5 @@
 # Example inputs (reference)
 
-This folder contains sample manifests/config/routing inputs for the renderer model described in this directory.
+Layered JSON examples that lived under **`manifests/`**, **`configs/`**, and **`routing/`** were removed in favor of **real deployment bundles** under **`deployments/`**, which match what `scripts/compile.py` consumes.
 
-Notes:
-- Some example mount sources use placeholders like `{{GLOBE_LANDING_SITE}}` to keep the reference template portable across machines.
-
+Use those directories as the reference for routing, services, and config shape (see also **`schemas/`** and **`DEPLOYMENT_MODEL.md`**).

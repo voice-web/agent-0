@@ -30,7 +30,7 @@ This document is the **single place** we align on how routing, manifests, config
 | Environment config | `config.json` | Merged into compose env / passed to compilers |
 | **Resolved bundle** | (derived) | **`resolved.json`** — fully merged inputs + computed values after overlays (for debug, audit, and “what we actually applied”) |
 
-**Generated root** (`.generated/`): **this is what operators use for `docker compose`.** Any current `compose/*.yml` or static `examples/routing/Caddyfile-*` in git exists only **until** the compiler and `deployments/` inputs replace them; **when the new model is done, delete that legacy material** so the tree stays a single pipeline (sources → compile → `.generated/`). Do not keep hand-maintained compose or duplicate Caddyfiles “as examples” in this repo — samples should be **routing/services/config JSON** (or small deployment fixtures), not a second copy of machine output. Layout sketch:
+**Generated root** (`.generated/`): **this is what operators use for `docker compose`.** Hand-maintained `compose/*.yml` and static `examples/routing/Caddyfile-*` were removed; the only long-lived sources are **`deployments/`** JSON and **`compile.py`**. Do not reintroduce duplicate Caddyfiles or parallel compose “examples” in git—extend bundles under `deployments/` instead. Layout sketch:
 
 - `.generated/edge/` — Compose project for **Caddy (or future ingress)** + merged `Caddyfile`
 - `.generated/deployments/<deployment_id>/` — Compose project(s) for **application stacks** that attach to the shared network
@@ -179,10 +179,10 @@ To avoid rework when schemas/manifests/routing move out of `agent-0`:
 
 ## Next implementation steps (when we agree)
 
-1. Add JSON Schema files for **routing**, **manifest**, **config** (v1 minimal).
-2. Add `scripts/compile.sh` (or Python): validate + conflict detection → emit **`.generated/edge/`**, **`.generated/deployments/...`**, **`resolved.json`**.
-3. Refactor `up.sh` / `down.sh` to **only** drive **`docker compose` against generated files** (multi-project: edge first, then apps); labels on all services.
-4. **Remove legacy** from the repo once parity is proven: old `compose/*.yml`, duplicate static Caddyfiles, and any scripts that bypass compile — **delete them**; documentation points only at `deployments/` inputs + `.generated/`.
+1. ~~Add JSON Schema files for **routing**, **manifest**, **config** (v1 minimal).~~ Done under `schemas/`.
+2. ~~Add `scripts/compile.py`: validate + conflict detection → emit `.generated/<id>/` (edge + app compose, Caddyfile, `resolved.json`).~~ Done.
+3. ~~Refactor `up.sh` / `down.sh` to only drive `docker compose` against generated files.~~ Done.
+4. ~~Remove legacy `compose/*.yml`, static Caddy examples, and parallel configs.~~ Done.
 
 ---
 
@@ -191,3 +191,4 @@ To avoid rework when schemas/manifests/routing move out of `agent-0`:
 - **2026-04-02** — Initial consolidated model (routing + manifest + config, shared edge, Flux-like flow, labels, multi-repo evolution).
 - **2026-04-02** — Multi-project Compose as preferred (infra edge vs app teams); generated compose is authoritative; strict validate/conflict checks; `resolved.json` formalized.
 - **2026-04-02** — Post-migration cleanup: no long-lived legacy compose or hand Caddy examples in-tree; samples are JSON inputs only.
+- **2026-04-03** — Removed legacy `compose/*.yml`, `examples/routing/Caddyfile-*`, split `configs/*.json`, and pre-bundle `examples/manifests` / `examples/configs`; stubs under `compose/README.md` and `configs/README.md` explain the move to `deployments/`.

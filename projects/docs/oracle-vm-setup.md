@@ -236,7 +236,7 @@ Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-doc
 
 #### When this applies
 
-- You have deployed (or will deploy) **`projects/deploy-docker`** with environment **`oci-vm`** so Caddy serves **`api.worldcliques.org`**, **`auth.worldcliques.org`**, and explicit HTML names (default **`worldcliques.org`**; optional **`WC_OCI_HTML_HOSTS`** for `www` or others — see `projects/deploy-docker/DEPLOY_LOCAL.md`).
+- You have deployed (or will deploy) **`projects/deploy-docker`** with environment **`oci-vm`** so Caddy serves **`api.worldcliques.org`**, **`auth.worldcliques.org`**, and explicit HTML names (default **`worldcliques.org`**; add `www` or others via **`routing.html_hosts`** in **`deployments/vm-host-oci/config.json`** — see `projects/deploy-docker/DEPLOY_LOCAL.md`).
 - You want **public** certificates instead of lab-only **`tls internal`** (`WC_CADDY_TLS=internal`).
 
 #### Prerequisites

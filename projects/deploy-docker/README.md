@@ -18,20 +18,18 @@ The goal is to let you review the “model” first, then implement it in code i
 4. **Service config overlay**: per environment parameters (env vars, mounts, feature flags).
 5. **Secrets**: values injected at runtime (admin passwords, client secrets, TLS/ACME material).
 
-## Recommended repository structure
+## Repository layout (this project)
 
-When you implement the renderer, keep the inputs separate:
-
-- `manifests/` (what logical services to deploy)
-- `routing/` (how ingress maps to logical services)
-- `configs/` (env-specific params per logical service)
-- `images/` (optional lookup table of image tags by logical service)
+- **`deployments/<id>/`** — one bundle per target: `deployment.json`, `routing.json`, `services.json`, `config.json`
+- **`schemas/`** — JSON Schema for those inputs
+- **`scripts/compile.py`** — validates (optional) and writes **`.generated/<id>/`** (Caddyfile, compose, `resolved.json`)
+- **`compose/`**, **`configs/`** — stubs only; legacy files were removed (see each `README.md` there)
 
 ## How to review this reference
 
-- Start with `MANIFEST_CONTRACT.md` to understand the manifest schema.
-- Then read `EXAMPLES.md` and the sample files in `examples/`.
-- Finally review `RENDERING_CONTRACT.md` to see what the renderer must output.
+- Start with `DEPLOYMENT_MODEL.md`, then `DEPLOY_LOCAL.md`.
+- `EXAMPLES.md` points at `deployments/` as the concrete reference.
+- Older contracts (`MANIFEST_CONTRACT.md`, `RENDERING_CONTRACT.md`) describe ideas that map to the bundle + compiler shape above.
 
 ## Running and debugging
 

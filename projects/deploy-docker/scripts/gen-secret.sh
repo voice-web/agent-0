@@ -17,18 +17,23 @@ if [[ "$SECRET_KIND" != "keycloak" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_DIR="$ROOT_DIR/compose"
 
-# Discover available environments from compose files: infra-<env>.yml
+# Discover secrets env names from deployment bundles (config.json → env_name)
 ENVIRONMENTS=()
-if compgen -G "$COMPOSE_DIR/infra-*.yml" >/dev/null 2>&1; then
-  for f in "$COMPOSE_DIR"/infra-*.yml; do
-    base="$(basename "$f")" # infra-127.0.0.1.yml
-    env="${base#infra-}"
-    env="${env%.yml}"
-    ENVIRONMENTS+=("$env")
-  done
-fi
+while IFS= read -r line; do
+  [[ -n "$line" ]] && ENVIRONMENTS+=("$line")
+done < <(
+  python3 -c "
+import json
+from pathlib import Path
+root = Path(r'''$ROOT_DIR''')
+dep = root / 'deployments'
+if not dep.is_dir():
+    exit(0)
+for c in sorted(dep.glob('*/config.json')):
+    print(json.loads(c.read_text(encoding='utf-8'))['env_name'])
+"
+)
 
 if [[ ${#ENVIRONMENTS[@]} -eq 0 ]]; then
   ENVIRONMENTS=("127.0.0.1")

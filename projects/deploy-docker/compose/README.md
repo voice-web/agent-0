@@ -1,31 +1,10 @@
-# compose/ — local bring-up examples
+# compose/ (legacy location)
 
-These compose files support the reference bring-up workflow:
-- `up.sh infra 127.0.0.1` starts `caddy` + `keycloak` and creates a shared docker network.
-- `up.sh application 127.0.0.1` starts enabled app services on the same network.
-- `up.sh infra oci-vm` / `up.sh application oci-vm` use the same pattern on network `wc-oci-vm-net` with Caddy on **80 and 443**.
+Hand-maintained **`*.yml` files here were removed.** Operations use:
 
-Request routing for local:
-- `http://127.0.0.1/api/*` -> `default-api-json`
-- `http://127.0.0.1/auth/*` -> `keycloak`
-- `http://127.0.0.1/ui/*` -> `globe-landing` (when enabled in config)
-- everything else -> `default-html`
+- **Sources:** `deployments/<id>/` (`deployment.json`, `routing.json`, `services.json`, `config.json`)
+- **Compile:** `python3 scripts/compile.py <id>`
+- **Generated compose + Caddyfile:** `.generated/<id>/edge/docker-compose.yml`, `.generated/<id>/app/docker-compose.yml` (not committed)
+- **Bring up:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`
 
-Service enable flags come from:
-- `../configs/127.0.0.1.json` or `../configs/oci-vm.json`
-
-Keycloak admin credentials:
-- The infra compose file reads Keycloak admin username/password from `env_file`
-- Default paths: `~/.secrets/worldcliques/127.0.0.1/keycloak.env` or `~/.secrets/worldcliques/oci-vm/keycloak.env`
-
-### oci-vm (host-based routing)
-
-Caddy listens on **:80** and **:443** (automatic HTTPS for the public hostnames unless `WC_CADDY_TLS=internal` when generating the Caddyfile).
-
-- `api.worldcliques.org` → `default-api-json`
-- `auth.worldcliques.org` → `keycloak` (`KC_HTTP_RELATIVE_PATH=/auth`; **`KC_HOSTNAME_URL`** defaults to **`https://auth.worldcliques.org/auth`** — override with **`KEYCLOAK_PUBLIC_URL`** if needed)
-- Explicit HTML hosts only (default **`worldcliques.org`**; set **`WC_OCI_HTML_HOSTS`** when you need more) → `default-html` (image **0.0.2+** bundles the earth texture under `/assets/`)
-- **`/login/*`** → `globe-landing` **only when** `globe-landing` is enabled in config; otherwise `/login` is served by default-html
-
-Per-hostname HTTP-01 certs are the default (no `*.worldcliques.org` in Caddy). For a lab VM use `WC_CADDY_TLS=internal` and trust Caddy's local CA (or use `/etc/hosts` + browser exceptions).
-
+See `DEPLOY_LOCAL.md` and `DEPLOYMENT_MODEL.md`.
