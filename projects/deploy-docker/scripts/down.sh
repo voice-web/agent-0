@@ -45,12 +45,18 @@ EDGE_COMPOSE="$(
   python3 -c "import json; print(json.load(open('$RESOLVED'))['paths']['edge_compose'])"
 )"
 
-CONFIG_ENV_NAME="$(
-  python3 -c "import json, pathlib; print(json.loads(pathlib.Path('$DEPLOY_DIR/config.json').read_text())['env_name'])"
-)"
-DEFAULT_KEYCLOAK_ENV_FILE="${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/${CONFIG_ENV_NAME}/keycloak.env}"
 KEYCLOAK_TMP_ENV_FILE=""
-if [[ ! -f "$DEFAULT_KEYCLOAK_ENV_FILE" ]]; then
+KC_USE=""
+if [[ -v KEYCLOAK_ENV_FILE ]] && [[ -f "$KEYCLOAK_ENV_FILE" ]]; then
+  KC_USE="$KEYCLOAK_ENV_FILE"
+elif KC_TRY="$(
+  python3 "$ROOT_DIR/scripts/resolve_keycloak_env.py" "$DEPLOY_DIR"
+)" && [[ -f "$KC_TRY" ]]; then
+  KC_USE="$KC_TRY"
+fi
+if [[ -n "$KC_USE" ]]; then
+  export KEYCLOAK_ENV_FILE="$KC_USE"
+else
   KEYCLOAK_TMP_ENV_FILE="$(mktemp)"
   printf 'KEYCLOAK_ADMIN=admin\nKEYCLOAK_ADMIN_PASSWORD=change-me\n' >"$KEYCLOAK_TMP_ENV_FILE"
   export KEYCLOAK_ENV_FILE="$KEYCLOAK_TMP_ENV_FILE"
@@ -58,8 +64,6 @@ if [[ ! -f "$DEFAULT_KEYCLOAK_ENV_FILE" ]]; then
     rm -f "$KEYCLOAK_TMP_ENV_FILE" >/dev/null 2>&1 || true
   }
   trap cleanup_tmp EXIT
-else
-  export KEYCLOAK_ENV_FILE="$DEFAULT_KEYCLOAK_ENV_FILE"
 fi
 
 APP_COMPOSE_REL="$(

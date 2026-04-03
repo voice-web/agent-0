@@ -7,6 +7,10 @@
   "properties": {
     "schema_version": { "type": "string" },
     "env_name": { "type": "string" },
+    "keycloak_env_file": {
+      "type": "string",
+      "description": "Optional path to keycloak.env (~ expanded). Relative paths are under deploy-docker root (parent of deployments/). Overrides default ~/.secrets/worldcliques/<env_name>/keycloak.env before fallback scan."
+    },
     "service_overrides": {
       "type": "object",
       "additionalProperties": {

@@ -6,7 +6,7 @@ For common failures (Keycloak / HSTS in Chrome, stale containers, secrets, image
 
 ## What it does
 
-Scripts take a **deployment dirname**: the folder name under **`deployments/`** (e.g. **`local-path-127`**, **`vm-host-oci`**). Add **`deployments/<new-name>/`** with the usual JSON files to support a new target—no alias tables in the shell scripts.
+Scripts take a **deployment dirname**: the folder name under **`deployments/`** (e.g. **`local-path-127`**, **`local-ports-127`**, **`vm-host-oci`**). Add **`deployments/<new-name>/`** with the usual JSON files to support a new target—no alias tables in the shell scripts.
 
 Single entrypoint:
 - `./scripts/up.sh <deployment-dirname>` — infra + application
@@ -77,29 +77,51 @@ Set `"enabled": false` to disable a service, then re-run **`./scripts/up.sh loca
 
 ## Local routing contract (Caddyfile)
 
+### Path per listener (`local-path-127`)
+
 Caddy listens on port `80` and uses **path-based routing**:
 - `http://127.0.0.1:80/api/*` -> `default-api-json`
 - `http://127.0.0.1:80/auth/*` -> `keycloak`
 - `http://127.0.0.1:80/ui/*` -> `globe-landing` (**only when enabled**)
 - anything else (e.g. `http://127.0.0.1:80/`) -> `default-html`
 
+### One port per service (`local-ports-127`)
+
+Bundle **`local-ports-127`** uses **`routing.mode`: `local_ports`**. Caddy exposes a dedicated port per backend (defaults below; override in **`routing.service_ports`**):
+
+| Port | Service |
+|------|---------|
+| 8090 | Keycloak (`KC_HTTP_RELATIVE_PATH` is **`/`**; open `http://127.0.0.1:8090/`) |
+| 8091 | `default-api-json` |
+| 8092 | `default-html` |
+| 8093 | `globe-landing` |
+
+Bring up like any other bundle: **`./scripts/up.sh local-ports-127`**. Keycloak secrets resolve as in **[Keycloak env_file resolution](#keycloak-env_file-resolution)** (default path uses **`config.env_name`**; if that file is missing, the scripts may pick another `keycloak.env` under **`~/.secrets/worldcliques/*/`**).
+
 ## Defaults / environment variables
 
-Bundles included here: **`local-path-127`** (path-based routing on :80 at **`127.0.0.1`**) and **`vm-host-oci`** (hostname routing on :80 and :443). Secrets paths still use **`env_name`** inside each bundle’s **`config.json`** (e.g. **`127.0.0.1`** / **`oci-vm`** under **`~/.secrets/worldcliques/`**).
+Bundles included here: **`local-path-127`** (paths on **`127.0.0.1:80`**), **`local-ports-127`** (ports **8090–8093**), and **`vm-host-oci`** (hostnames on :80 / :443). Secrets paths usually use **`env_name`** in each bundle’s **`config.json`** under **`~/.secrets/worldcliques/<env_name>/`**, with optional fallback (see below).
 
 You can override these by exporting before running:
-- `KEYCLOAK_ENV_FILE` (default: `~/.secrets/worldcliques/<environment>/keycloak.env`)
-  - This file is loaded by docker compose via Keycloak `env_file`
+- `KEYCLOAK_ENV_FILE` — absolute path to the Keycloak `env_file`. If you **export** this variable, it **must** exist; there is no fallback. (Leave it **unset** to use automatic resolution.)
   - Format (example):
     - `KEYCLOAK_ADMIN=admin`
     - `KEYCLOAK_ADMIN_PASSWORD=change-me`
 - `GLOBE_LANDING_ASSETS` (default: your local `globe-landing/site/assets` path)
 
+### Keycloak env_file resolution
+
+`up.sh`, `down.sh`, and `update.sh` set `KEYCLOAK_ENV_FILE` for compose unless you already exported it. Automatic resolution (via `scripts/resolve_keycloak_env.py`) uses, in order:
+
+1. **`config.json` → `keycloak_env_file`** (optional): path to the file. `~` is expanded; a **relative** path is resolved from the **`deploy-docker`** project root (parent of `deployments/`). If set, the file **must** exist.
+2. **`~/.secrets/worldcliques/<env_name>/keycloak.env`** where **`env_name`** comes from **`config.json`**.
+3. **Fallback:** any existing **`~/.secrets/worldcliques/*/keycloak.env`**, preferring in order **`127.0.0.1`**, the bundle’s **`env_name`**, **`local-path-127`**, **`oci-vm`**, then remaining directories by name. When a fallback is used, a one-line notice is printed on stderr.
+
 ## Keycloak admin secret file (per environment)
 
 The infra stack uses a Keycloak `env_file` for the admin username/password.
 
-Create the file outside git at:
+A typical location (matches **`local-path-127`**’s **`env_name`**) is:
 
 `~/.secrets/worldcliques/127.0.0.1/keycloak.env`
 
@@ -113,7 +135,7 @@ KEYCLOAK_ADMIN_PASSWORD=change-me
 EOF
 ```
 
-If you want a different location, set `KEYCLOAK_ENV_FILE` before running `./scripts/up.sh infra local-path-127` (or your bundle name).
+To force a specific file for all runs of a bundle, either set **`KEYCLOAK_ENV_FILE`** in the shell or add **`keycloak_env_file`** to that bundle’s **`config.json`**.
 
 ## Oracle VM / public DNS (`vm-host-oci`)
 
@@ -143,9 +165,9 @@ Optional:
 
 ## Reference files (for review)
 
-- **Sources:** `deployments/local-path-127/`, `deployments/vm-host-oci/`, `schemas/`
+- **Sources:** `deployments/local-path-127/`, `deployments/local-ports-127/`, `deployments/vm-host-oci/`, `schemas/`
 - **Compiler:** `scripts/compile.py`
-- **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`
+- **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`, `scripts/resolve_keycloak_env.py`
 - **Outputs (local, not in git):** `.generated/<sanitized deployment_id>/` — `Caddyfile`, `edge/docker-compose.yml`, `app/docker-compose.yml`, `resolved.json` (see **`deployment.json`** → **`deployment_id`**; usually matches the bundle dirname)
 
 ## Bring down

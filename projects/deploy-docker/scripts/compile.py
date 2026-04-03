@@ -10,6 +10,7 @@ Outputs:
 """
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -102,6 +103,81 @@ def emit_local_path_caddy(config: dict, path: Path) -> None:
         "}",
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+DEFAULT_LOCAL_SERVICE_PORTS: dict[str, int] = {
+    "keycloak": 8090,
+    "default-api-json": 8091,
+    "default-html": 8092,
+    "globe-landing": 8093,
+}
+
+LOCAL_PORTS_BACKENDS: dict[str, str] = {
+    "keycloak": "keycloak",
+    "default-api-json": "default-api-json",
+    "default-html": "default-html",
+    "globe-landing": "globe-landing",
+}
+
+
+def emit_local_ports_caddy(
+    routing: dict,
+    config: dict,
+    path: Path,
+    services_manifest: dict,
+) -> None:
+    """One Caddy site per port; each proxies to a single backend (dev isolation)."""
+    merged = {**DEFAULT_LOCAL_SERVICE_PORTS, **(routing.get("service_ports") or {})}
+    ports_by_svc = {k: int(v) for k, v in merged.items()}
+    seen: set[int] = set()
+    for svc, p in ports_by_svc.items():
+        if p in seen:
+            sys.stderr.write(
+                f"routing error: duplicate port {p} in service_ports for {svc}\n"
+            )
+            sys.exit(2)
+        seen.add(p)
+
+    ordered = [
+        "keycloak",
+        "default-api-json",
+        "default-html",
+        "globe-landing",
+    ]
+    blocks: list[str] = []
+
+    def proxy_block(port: int, upstream: str) -> None:
+        blocks.append(f":{port} {{")
+        blocks.append("\tencode zstd gzip")
+        blocks.append(f"\treverse_proxy {upstream}:8080 {{")
+        blocks.append("\t\t# Avoid HSTS on plain HTTP local dev (esp. Keycloak).")
+        blocks.append("\t\theader_down -Strict-Transport-Security")
+        blocks.append("\t}")
+        blocks.append("}")
+
+    for logical in ordered:
+        port = ports_by_svc[logical]
+        upstream = LOCAL_PORTS_BACKENDS[logical]
+        if logical == "keycloak":
+            proxy_block(port, upstream)
+            continue
+        enabled = service_enabled(config, logical, default=True)
+        if enabled:
+            proxy_block(port, upstream)
+        else:
+            blocks.append(f":{port} {{")
+            blocks.append(
+                f'\trespond "{logical} disabled in config.json" 503'
+            )
+            blocks.append("}")
+
+    path.write_text("\n".join(blocks) + "\n", encoding="utf-8")
+
+
+def caddy_publish_ports_for_local_ports(routing: dict) -> list[str]:
+    merged = {**DEFAULT_LOCAL_SERVICE_PORTS, **(routing.get("service_ports") or {})}
+    ports = sorted({int(p) for p in merged.values()})
+    return [f"{p}:{p}" for p in ports]
 
 
 def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
@@ -379,6 +455,36 @@ def build_test_routes(
                     {"label": f"Globe /login ({h})", "urls": host_urls(h, "/login/")}
                 )
 
+    elif mode == "local_ports":
+        merged = {**DEFAULT_LOCAL_SERVICE_PORTS, **(routing.get("service_ports") or {})}
+        kc = _keycloak_env(services_manifest)
+        host = str(kc.get("KC_HOSTNAME") or "127.0.0.1")
+        rel_raw = (kc.get("KC_HTTP_RELATIVE_PATH") or "/").strip()
+        rel = rel_raw if rel_raw.startswith("/") else f"/{rel_raw}"
+        rel = rel.rstrip("/")
+        kc_suffix = "/" if rel == "" else f"{rel}/"
+
+        labels = {
+            "keycloak": "Keycloak",
+            "default-api-json": "API (default-api-json)",
+            "default-html": "Default HTML",
+            "globe-landing": "Globe UI",
+        }
+        for logical in (
+            "keycloak",
+            "default-api-json",
+            "default-html",
+            "globe-landing",
+        ):
+            port = int(merged[logical])
+            suffix = kc_suffix if logical == "keycloak" else "/"
+            routes.append(
+                {
+                    "label": labels[logical],
+                    "urls": [f"http://{host}:{port}{suffix}"],
+                }
+            )
+
     return routes
 
 
@@ -426,15 +532,35 @@ def compile_deployment(deployment_dir: Path) -> Path:
             )
             sys.exit(2)
         emit_vm_host_caddy(routing, config, caddy_path)
+    elif mode == "local_ports":
+        emit_local_ports_caddy(routing, config, caddy_path, services_manifest)
     else:
         sys.stderr.write(f"unsupported routing mode: {mode}\n")
         sys.exit(2)
 
     caddy_abs = caddy_path.resolve()
+    edge_manifest = copy.deepcopy(services_manifest)
+    if mode == "local_ports":
+        merge_ports = {
+            **DEFAULT_LOCAL_SERVICE_PORTS,
+            **(routing.get("service_ports") or {}),
+        }
+        kc_port = int(merge_ports["keycloak"])
+        pub = caddy_publish_ports_for_local_ports(routing)
+        for svc in edge_manifest["edge"]:
+            if svc["name"] == "caddy":
+                svc["ports"] = pub
+            elif svc["name"] == "keycloak":
+                env = dict(svc.get("environment") or {})
+                hn = str(env.get("KC_HOSTNAME", "127.0.0.1"))
+                root = f"http://{hn}:{kc_port}"
+                env["KC_HOSTNAME_URL"] = root
+                env["KC_HOSTNAME_ADMIN_URL"] = root
+                svc["environment"] = env
     write_edge_compose(
         out_dir / "edge" / "docker-compose.yml",
-        services_manifest,
-        services_manifest["network_name"],
+        edge_manifest,
+        edge_manifest["network_name"],
         deployment_id,
         caddy_abs,
     )

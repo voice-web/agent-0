@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "mode": "local_ports",
+  "service_ports": {
+    "keycloak": 8090,
+    "default-api-json": 8091,
+    "default-html": 8092,
+    "globe-landing": 8093
+  }
+}

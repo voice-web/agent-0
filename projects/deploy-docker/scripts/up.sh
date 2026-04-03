@@ -71,10 +71,17 @@ for want in infra application; do
   done
 done
 
-CONFIG_ENV_NAME="$(
-  python3 -c "import json, pathlib; print(json.loads(pathlib.Path('$DEPLOY_DIR/config.json').read_text())['env_name'])"
-)"
-export KEYCLOAK_ENV_FILE="${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/${CONFIG_ENV_NAME}/keycloak.env}"
+if [[ -v KEYCLOAK_ENV_FILE ]]; then
+  if [[ ! -f "$KEYCLOAK_ENV_FILE" ]]; then
+    echo "KEYCLOAK_ENV_FILE is set but file not found: $KEYCLOAK_ENV_FILE" >&2
+    exit 1
+  fi
+else
+  KEYCLOAK_ENV_FILE="$(
+    python3 "$ROOT_DIR/scripts/resolve_keycloak_env.py" "$DEPLOY_DIR"
+  )" || exit 1
+  export KEYCLOAK_ENV_FILE
+fi
 
 includes_manifest() {
   local want="$1"
