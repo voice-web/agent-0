@@ -87,34 +87,78 @@ def compose_container_name(deployment_id: str, service_name: str) -> str:
     return f"{sanitize(deployment_id)}-{service_name}"
 
 
+def _caddy_dquoted(s: str) -> str:
+    """Caddyfile double-quoted string literal."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _caddy_server_banner_name() -> str:
+    """Opaque edge `Server` value (not \"Caddy\"). Empty WC_CADDY_SERVER_NAME = omit header after strip."""
+    return os.environ.get("WC_CADDY_SERVER_NAME", "web").strip()
+
+
+def _caddy_response_server_block(indent: str) -> str:
+    """Strip Caddy default Server; optionally set deferred generic Server (WC_CADDY_SERVER_NAME)."""
+    name = _caddy_server_banner_name()
+    lines = [f"{indent}header /* {{", f"{indent}\t-Server"]
+    if name:
+        lines.append(f"{indent}\t>Server {_caddy_dquoted(name)}")
+    lines.append(f"{indent}}}")
+    return "\n".join(lines)
+
+
+def _caddy_handle_errors_server_block(indent: str) -> str:
+    name = _caddy_server_banner_name()
+    inner = indent + "\t"
+    lines = [f"{indent}handle_errors {{", f"{inner}header -Server"]
+    if name:
+        lines.append(f"{inner}header >Server {_caddy_dquoted(name)}")
+    lines.append(f"{indent}}}")
+    return "\n".join(lines)
+
+
 def emit_local_path_caddy(config: dict, path: Path) -> None:
     globe = service_enabled(config, "globe-landing", False)
     lines = [
+        "{",
+        "\torder header last",
+        "}",
+        "",
         ":80 {",
         "\tencode zstd gzip",
-        "\theader -Server",
+        *_caddy_response_server_block("\t").split("\n"),
+        *_caddy_handle_errors_server_block("\t").split("\n"),
         "",
         "\thandle_path /api/* {",
-        "\t\treverse_proxy default-api-json:8080",
+        "\t\treverse_proxy default-api-json:8080 {",
+        "\t\t\theader_down -Server",
+        "\t\t}",
         "\t}",
         "\thandle_path /api {",
-        "\t\treverse_proxy default-api-json:8080",
+        "\t\treverse_proxy default-api-json:8080 {",
+        "\t\t\theader_down -Server",
+        "\t\t}",
         "\t}",
-		"\t@auth path /auth*",
-		"\thandle @auth {",
-		"\t\treverse_proxy keycloak:8080 {",
-		"\t\t\t# Keycloak may emit HSTS; browsers then upgrade to https://127.0.0.1, which has no listener.",
-		"\t\t\theader_down -Strict-Transport-Security",
-		"\t\t}",
-		"\t}",
+        "\t@auth path /auth*",
+        "\thandle @auth {",
+        "\t\treverse_proxy keycloak:8080 {",
+        "\t\t\t# Keycloak may emit HSTS; browsers then upgrade to https://127.0.0.1, which has no listener.",
+        "\t\t\theader_down -Strict-Transport-Security",
+        "\t\t\theader_down -Server",
+        "\t\t}",
+        "\t}",
     ]
     if globe:
         lines += [
             "\thandle_path /ui/* {",
-            "\t\treverse_proxy globe-landing:8080",
+            "\t\treverse_proxy globe-landing:8080 {",
+            "\t\t\theader_down -Server",
+            "\t\t}",
             "\t}",
             "\thandle_path /ui {",
-            "\t\treverse_proxy globe-landing:8080",
+            "\t\treverse_proxy globe-landing:8080 {",
+            "\t\t\theader_down -Server",
+            "\t\t}",
             "\t}",
         ]
     else:
@@ -126,7 +170,9 @@ def emit_local_path_caddy(config: dict, path: Path) -> None:
         ]
     lines += [
         "\thandle {",
-        "\t\treverse_proxy default-html:8080",
+        "\t\treverse_proxy default-html:8080 {",
+        "\t\t\theader_down -Server",
+        "\t\t}",
         "\t}",
         "}",
     ]
@@ -177,10 +223,12 @@ def emit_local_ports_caddy(
     def proxy_block(port: int, upstream: str) -> None:
         blocks.append(f":{port} {{")
         blocks.append("\tencode zstd gzip")
-        blocks.append("\theader -Server")
+        blocks.extend(_caddy_response_server_block("\t").split("\n"))
+        blocks.extend(_caddy_handle_errors_server_block("\t").split("\n"))
         blocks.append(f"\treverse_proxy {upstream}:8080 {{")
         blocks.append("\t\t# Avoid HSTS on plain HTTP local dev (esp. Keycloak).")
         blocks.append("\t\theader_down -Strict-Transport-Security")
+        blocks.append("\t\theader_down -Server")
         blocks.append("\t}")
         blocks.append("}")
 
@@ -200,7 +248,10 @@ def emit_local_ports_caddy(
             )
             blocks.append("}")
 
-    path.write_text("\n".join(blocks) + "\n", encoding="utf-8")
+    path.write_text(
+        "{\n\torder header last\n}\n\n" + "\n".join(blocks) + "\n",
+        encoding="utf-8",
+    )
 
 
 def caddy_publish_ports_for_local_ports(routing: dict) -> list[str]:
@@ -212,7 +263,14 @@ def caddy_publish_ports_for_local_ports(routing: dict) -> list[str]:
 def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
     tls_line = "\n\ttls internal" if os.environ.get("WC_CADDY_TLS", "auto") == "internal" else ""
     email = os.environ.get("WC_CADDY_ACME_EMAIL", "").strip()
-    global_block = f"{{\n\temail {email}\n}}\n\n" if email else ""
+    # Defer header handler so -Server / >Server run after reverse_proxy/encode; handle_errors
+    # covers error responses. header_down strips upstream Server (uvicorn, etc.). Banner: WC_CADDY_SERVER_NAME.
+    global_lines = ["{"]
+    if email:
+        global_lines.append(f"\temail {email}")
+    global_lines.append("\torder header last")
+    global_lines.append("}")
+    global_block = "\n".join(global_lines) + "\n\n"
 
     ro = config.get("routing") or {}
     html_hosts = ro.get("html_hosts") or routing.get("html_hosts") or ["worldcliques.org"]
@@ -226,45 +284,57 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
 	redir @login_no_slash /login/ 308
 	handle /login/* {
 		uri strip_prefix /login
-		reverse_proxy globe-landing:8080
+		reverse_proxy globe-landing:8080 {
+			header_down -Server
+		}
 	}
 	handle /login/ {
 		uri strip_prefix /login
-		reverse_proxy globe-landing:8080
+		reverse_proxy globe-landing:8080 {
+			header_down -Server
+		}
 	}
 """
 
+    _sh = _caddy_response_server_block("\t")
+    _eh = _caddy_handle_errors_server_block("\t")
+    _hsts = '\theader Strict-Transport-Security "max-age=15552000"\n'
+
     api_block = ""
     if service_enabled(config, "default-api-json", default=True):
-        api_block = f"""api.worldcliques.org {{{tls_line}
-	encode zstd gzip
-	header -Server
-	header Strict-Transport-Security "max-age=15552000"
-	reverse_proxy default-api-json:8080
-}}
-
-"""
+        api_block = (
+            f"api.worldcliques.org {{{tls_line}\n"
+            "\tencode zstd gzip\n"
+            + _sh
+            + "\n"
+            + _hsts
+            + _eh
+            + "\n\treverse_proxy default-api-json:8080 {\n\t\theader_down -Server\n\t}\n}\n\n"
+        )
 
     auth_block = ""
     if service_enabled(config, "keycloak", default=True):
-        auth_block = f"""auth.worldcliques.org {{{tls_line}
-	encode zstd gzip
-	header -Server
-	header Strict-Transport-Security "max-age=15552000"
-	reverse_proxy keycloak:8080
-}}
+        auth_block = (
+            f"auth.worldcliques.org {{{tls_line}\n"
+            "\tencode zstd gzip\n"
+            + _sh
+            + "\n"
+            + _hsts
+            + _eh
+            + "\n\treverse_proxy keycloak:8080 {\n\t\theader_down -Server\n\t}\n}\n\n"
+        )
 
-"""
-
-    body = f"""{api_block}{auth_block}{html_hosts_str} {{{tls_line}
-	encode zstd gzip
-	header -Server
-	header Strict-Transport-Security "max-age=15552000"
-{login_block}\thandle {{
-		reverse_proxy default-html:8080
-	}}
-}}
-"""
+    body = (
+        f"{api_block}{auth_block}{html_hosts_str} {{{tls_line}\n"
+        "\tencode zstd gzip\n"
+        + _sh
+        + "\n"
+        + _hsts
+        + _eh
+        + "\n"
+        + login_block
+        + "\thandle {\n\t\treverse_proxy default-html:8080 {\n\t\t\theader_down -Server\n\t\t}\n\t}\n}\n"
+    )
     path.write_text(global_block + body, encoding="utf-8")
 
 

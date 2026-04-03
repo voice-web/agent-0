@@ -22,6 +22,8 @@ Path-based **ingress** / TLS termination. Usually the **only** service publishin
 
 Usually none required for a static Caddyfile. **DNS / ACME** may need env if you template the file.
 
+When the **deploy-docker** `compile.py` generator builds the Caddyfile, set **`WC_CADDY_SERVER_NAME`** (optional) to the opaque `Server` response banner (default **`web`**). Caddy’s default `Server: Caddy` is stripped and replaced so the edge does not advertise the product. Set it to an **empty** string to strip `Server` only (no replacement).
+
 ## Secrets (`~/.secrets` or env)
 
 - TLS keys, ACME account material, or cloud DNS API tokens—**never** in the image; inject via compose **env_file** or **bind mounts** from **`~/.secrets`**.
