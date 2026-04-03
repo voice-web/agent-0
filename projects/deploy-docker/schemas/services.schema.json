@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://worldcliques.dev/deploy-docker/services.schema.json",
+  "title": "Services manifest (edge + app groups)",
+  "type": "object",
+  "required": ["schema_version", "network_name", "edge_project", "app_project", "edge", "application"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "network_name": { "type": "string" },
+    "edge_project": { "type": "string" },
+    "app_project": { "type": "string" },
+    "edge": { "type": "array", "items": { "$ref": "#/$defs/service" } },
+    "application": { "type": "array", "items": { "$ref": "#/$defs/service" } }
+  },
+  "$defs": {
+    "service": {
+      "type": "object",
+      "required": ["name", "image"],
+      "properties": {
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "optional": { "type": "boolean", "description": "Omit from compose if disabled in config" },
+        "config_flag": { "type": "string", "description": "service_overrides key for optional" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

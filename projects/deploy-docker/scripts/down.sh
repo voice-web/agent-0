@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bring down the local stack for a given environment.
+# Tear down deployment stacks (application project first, then edge / network).
 # Usage:
-#   ./scripts/down.sh 127.0.0.1
-#   ./scripts/down.sh --volumes 127.0.0.1
+#   ./scripts/down.sh [--volumes] <local-path-127|vm-host-oci|127.0.0.1|oci-vm>
 
 VOL_OPTS=()
 if [[ "${1:-}" == "--volumes" ]]; then
@@ -12,43 +11,52 @@ if [[ "${1:-}" == "--volumes" ]]; then
   shift
 fi
 
-ENVIRONMENT="${1:-}"
-if [[ -z "$ENVIRONMENT" ]]; then
-  echo "Usage: $0 [--volumes] <127.0.0.1|oci-vm>" >&2
+DEPLOYMENT_ID="${1:-}"
+if [[ -z "$DEPLOYMENT_ID" ]]; then
+  echo "Usage: $0 [--volumes] <deployment>" >&2
   exit 2
 fi
 
-case "$ENVIRONMENT" in
-  127.0.0.1 | oci-vm) ;;
-  *)
-    echo "This reference script currently supports environments: 127.0.0.1, oci-vm" >&2
-    exit 2
-    ;;
+case "$DEPLOYMENT_ID" in
+  127.0.0.1) DEPLOYMENT_ID="local-path-127" ;;
+  oci-vm) DEPLOYMENT_ID="vm-host-oci" ;;
 esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Ensure docker-compose variable substitution has safe defaults.
-# This avoids invalid volume specs like ":/srv/www/assets:ro" when env vars are unset.
 export GLOBE_LANDING_ASSETS="${GLOBE_LANDING_ASSETS:-/Users/ray.jimenez/worldcliques/git/vap/projects/globe-landing/site/assets}"
 
-# Same sanitization logic as up.sh
-SAFE_ENVIRONMENT="$(echo "$ENVIRONMENT" | tr '[:upper:]' '[:lower:]')"
-SAFE_ENVIRONMENT="${SAFE_ENVIRONMENT//./-}"
-SAFE_ENVIRONMENT="$(echo "$SAFE_ENVIRONMENT" | sed -E 's/[^a-z0-9_-]+/-/g')"
+DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_ID"
+if [[ ! -f "$DEPLOY_DIR/deployment.json" ]]; then
+  echo "Unknown deployment: $DEPLOYMENT_ID" >&2
+  exit 2
+fi
 
-# Keycloak admin credentials are provided via env_file.
-# If the real secret file doesn't exist, create a temporary one so
-# `docker compose down` can still parse the compose file.
-DEFAULT_KEYCLOAK_ENV_FILE="${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/${ENVIRONMENT}/keycloak.env}"
+echo "==> compile (for compose paths)"
+python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_ID" >/dev/null
+
+GENDIR="$ROOT_DIR/.generated/$DEPLOYMENT_ID"
+RESOLVED="$GENDIR/resolved.json"
+
+EDGE_PROJECT="$(
+  python3 -c "import json; print(json.load(open('$RESOLVED'))['compose_projects']['edge'])"
+)"
+APP_PROJECT="$(
+  python3 -c "import json; print(json.load(open('$RESOLVED'))['compose_projects']['application'])"
+)"
+EDGE_COMPOSE="$(
+  python3 -c "import json; print(json.load(open('$RESOLVED'))['paths']['edge_compose'])"
+)"
+
+CONFIG_ENV_NAME="$(
+  python3 -c "import json, pathlib; print(json.loads(pathlib.Path('$DEPLOY_DIR/config.json').read_text())['env_name'])"
+)"
+DEFAULT_KEYCLOAK_ENV_FILE="${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/${CONFIG_ENV_NAME}/keycloak.env}"
 KEYCLOAK_TMP_ENV_FILE=""
 if [[ ! -f "$DEFAULT_KEYCLOAK_ENV_FILE" ]]; then
   KEYCLOAK_TMP_ENV_FILE="$(mktemp)"
-  cat >"$KEYCLOAK_TMP_ENV_FILE" <<EOF
-KEYCLOAK_ADMIN=admin
-KEYCLOAK_ADMIN_PASSWORD=change-me
-EOF
+  printf 'KEYCLOAK_ADMIN=admin\nKEYCLOAK_ADMIN_PASSWORD=change-me\n' >"$KEYCLOAK_TMP_ENV_FILE"
   export KEYCLOAK_ENV_FILE="$KEYCLOAK_TMP_ENV_FILE"
   cleanup_tmp() {
     rm -f "$KEYCLOAK_TMP_ENV_FILE" >/dev/null 2>&1 || true
@@ -58,25 +66,16 @@ else
   export KEYCLOAK_ENV_FILE="$DEFAULT_KEYCLOAK_ENV_FILE"
 fi
 
-PROJECT_NAME="wc-${SAFE_ENVIRONMENT}"
+APP_COMPOSE_REL="$(
+  python3 -c "import json; d=json.load(open('$RESOLVED'))['paths'].get('app_compose'); print(d or '')"
+)"
 
-INFRA_COMPOSE_FILE="compose/infra-${ENVIRONMENT}.yml"
-APP_COMPOSE_FILE="compose/application-${ENVIRONMENT}.yml"
-
-if [[ ! -f "$INFRA_COMPOSE_FILE" ]]; then
-  echo "Missing compose file: $INFRA_COMPOSE_FILE" >&2
-  exit 2
+if [[ -n "$APP_COMPOSE_REL" && -f "$APP_COMPOSE_REL" ]]; then
+  echo "==> docker compose down (application): $APP_PROJECT"
+  docker compose -p "$APP_PROJECT" -f "$APP_COMPOSE_REL" down --remove-orphans "${VOL_OPTS[@]}" || true
 fi
 
-# application compose may be missing; infra down should still work.
-
-echo "==> docker compose down (infra)"
-docker compose -p "$PROJECT_NAME" -f "$INFRA_COMPOSE_FILE" down --remove-orphans "${VOL_OPTS[@]}"
-
-if [[ -f "$APP_COMPOSE_FILE" ]]; then
-  echo "==> docker compose down (application)"
-  docker compose -p "$PROJECT_NAME" -f "$APP_COMPOSE_FILE" down --remove-orphans "${VOL_OPTS[@]}"
-fi
+echo "==> docker compose down (edge): $EDGE_PROJECT"
+docker compose -p "$EDGE_PROJECT" -f "$EDGE_COMPOSE" down --remove-orphans "${VOL_OPTS[@]}"
 
 echo "OK"
-

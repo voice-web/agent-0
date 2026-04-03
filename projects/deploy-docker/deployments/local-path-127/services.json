@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "network_name": "wc-127-0-0-1-net",
+  "edge_project": "wc-edge-127",
+  "app_project": "wc-app-127",
+  "edge": [
+    {
+      "name": "caddy",
+      "image": "local/caddy:2.8.4",
+      "ports": ["80:80"],
+      "volumes_spec": ["caddyfile_bind", "caddy_data", "caddy_config"],
+      "depends_on": ["keycloak"],
+      "restart": "unless-stopped"
+    },
+    {
+      "name": "keycloak",
+      "image": "local/keycloak:26.0.5",
+      "label_role": "identity",
+      "command": ["start-dev"],
+      "env_file": ["${KEYCLOAK_ENV_FILE}"],
+      "environment": {
+        "KC_PROXY": "edge",
+        "KC_HTTP_ENABLED": "true",
+        "KC_HTTP_RELATIVE_PATH": "/auth",
+        "KC_HOSTNAME": "127.0.0.1",
+        "KC_HOSTNAME_STRICT": "false",
+        "KC_HOSTNAME_URL": "http://127.0.0.1/auth",
+        "KC_HOSTNAME_ADMIN_URL": "http://127.0.0.1/auth"
+      },
+      "restart": "unless-stopped"
+    }
+  ],
+  "application": [
+    {
+      "name": "default-html",
+      "image": "local/default-html:0.0.2",
+      "optional": true,
+      "config_flag": "default-html",
+      "environment": { "BASIC_HTTP_ROOT": "/srv/www", "PORT": "8080" },
+      "volumes_spec": ["globe_assets_bind"],
+      "restart": "unless-stopped"
+    },
+    {
+      "name": "default-api-json",
+      "image": "local/default-api-json:0.0.1",
+      "optional": true,
+      "config_flag": "default-api-json",
+      "environment": { "PORT": "8080", "CORS_ALLOW_ORIGINS": "*" },
+      "restart": "unless-stopped"
+    },
+    {
+      "name": "globe-landing",
+      "image": "local/globe-landing:0.0.1",
+      "optional": true,
+      "config_flag": "globe-landing",
+      "environment": { "PORT": "8080" },
+      "restart": "unless-stopped"
+    }
+  ]
+}

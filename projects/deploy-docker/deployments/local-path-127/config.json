@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "env_name": "127.0.0.1",
+  "service_overrides": {
+    "default-html": { "enabled": true },
+    "default-api-json": { "enabled": true },
+    "globe-landing": { "enabled": true }
+  }
+}

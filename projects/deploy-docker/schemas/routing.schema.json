@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://worldcliques.dev/deploy-docker/routing.schema.json",
+  "title": "Routing IR (Caddy v1)",
+  "type": "object",
+  "required": ["schema_version", "mode"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "mode": { "enum": ["local_path", "vm_host"] },
+    "html_hosts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "For vm_host: hostnames for default-html (no wildcards)"
+    }
+  },
+  "additionalProperties": true
+}

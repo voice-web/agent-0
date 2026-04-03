@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://worldcliques.dev/deploy-docker/deployment.schema.json",
+  "title": "Deployment bundle pointer",
+  "type": "object",
+  "required": ["schema_version", "deployment_id", "routing", "services", "config"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "deployment_id": { "type": "string", "minLength": 1 },
+    "routing": { "type": "string", "description": "Filename of routing.json in same directory" },
+    "services": { "type": "string" },
+    "config": { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "env_name": "oci-vm",
+  "service_overrides": {
+    "default-html": { "enabled": true },
+    "default-api-json": { "enabled": true },
+    "globe-landing": { "enabled": false }
+  },
+  "routing": {
+    "html_hosts": ["worldcliques.org"]
+  }
+}

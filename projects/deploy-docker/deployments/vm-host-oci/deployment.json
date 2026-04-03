@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "deployment_id": "vm-host-oci",
+  "routing": "routing.json",
+  "services": "services.json",
+  "config": "config.json"
+}

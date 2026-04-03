@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "deployment_id": "local-path-127",
+  "routing": "routing.json",
+  "services": "services.json",
+  "config": "config.json"
+}

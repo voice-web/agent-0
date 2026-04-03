@@ -2,6 +2,8 @@
 
 This page documents the reference local workflow in this directory.
 
+For common failures (Keycloak / HSTS in Chrome, stale containers, secrets, images), see **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**.
+
 ## What it does
 
 Single entrypoint script:

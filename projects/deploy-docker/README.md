@@ -33,3 +33,9 @@ When you implement the renderer, keep the inputs separate:
 - Then read `EXAMPLES.md` and the sample files in `examples/`.
 - Finally review `RENDERING_CONTRACT.md` to see what the renderer must output.
 
+## Running and debugging
+
+- Local bring-up commands and secrets paths: `DEPLOY_LOCAL.md`
+- Operational issues (browser HSTS, recreate after config changes, compose errors): `TROUBLESHOOTING.md`
+- Re-print route URLs (same deployment args as `up.sh`, e.g. `127.0.0.1`): `python3 scripts/print_routes.py 127.0.0.1` — add `--compile` to refresh `resolved.json` first
+
