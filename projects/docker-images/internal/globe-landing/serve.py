@@ -44,9 +44,7 @@ class _StaticHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Permissions-Policy", _PERMISSIONS_POLICY)
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("X-Frame-Options", "DENY")
-        xf = self.headers.get("X-Forwarded-Proto", "")
-        if xf.split(",", 1)[0].strip().lower() == "https":
-            self.send_header("Strict-Transport-Security", "max-age=15552000")
+        self.send_header("Strict-Transport-Security", "max-age=15552000")
         super().end_headers()
 
 

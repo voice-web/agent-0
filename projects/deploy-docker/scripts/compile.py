@@ -239,6 +239,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
         api_block = f"""api.worldcliques.org {{{tls_line}
 	encode zstd gzip
 	header -Server
+	header Strict-Transport-Security "max-age=15552000"
 	reverse_proxy default-api-json:8080
 }}
 
@@ -249,6 +250,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
         auth_block = f"""auth.worldcliques.org {{{tls_line}
 	encode zstd gzip
 	header -Server
+	header Strict-Transport-Security "max-age=15552000"
 	reverse_proxy keycloak:8080
 }}
 
@@ -257,6 +259,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
     body = f"""{api_block}{auth_block}{html_hosts_str} {{{tls_line}
 	encode zstd gzip
 	header -Server
+	header Strict-Transport-Security "max-age=15552000"
 {login_block}\thandle {{
 		reverse_proxy default-html:8080
 	}}

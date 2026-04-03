@@ -35,7 +35,7 @@
   "application": [
     {
       "name": "default-html",
-      "image": "local/default-html:0.0.7",
+      "image": "local/default-html:0.0.8",
       "optional": true,
       "config_flag": "default-html",
       "environment": { "BASIC_HTTP_ROOT": "/srv/www", "PORT": "8080" },
@@ -43,7 +43,7 @@
     },
     {
       "name": "default-api-json",
-      "image": "local/default-api-json:0.0.4",
+      "image": "local/default-api-json:0.0.5",
       "optional": true,
       "config_flag": "default-api-json",
       "environment": { "PORT": "8080", "CORS_ALLOW_ORIGINS": "*" },
@@ -51,7 +51,7 @@
     },
     {
       "name": "globe-landing",
-      "image": "local/globe-landing:0.0.6",
+      "image": "local/globe-landing:0.0.7",
       "optional": true,
       "config_flag": "globe-landing",
       "environment": { "PORT": "8080" },

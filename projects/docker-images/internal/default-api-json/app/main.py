@@ -50,19 +50,12 @@ _PERMISSIONS_POLICY = (
 )
 
 
-def _request_is_https(request: Request) -> bool:
-    if request.url.scheme == "https":
-        return True
-    xf = request.headers.get("x-forwarded-proto", "")
-    return xf.split(",", 1)[0].strip().lower() == "https"
-
-
 def _set_header_if_absent(headers, name: str, value: str) -> None:
     if name.lower() not in headers:
         headers[name] = value
 
 
-def _apply_browser_security_headers_api(request: Request, response: Response) -> None:
+def _apply_browser_security_headers_api(_request: Request, response: Response) -> None:
     h = response.headers
     _strip_leaky_response_headers(h)
     _set_header_if_absent(h, "X-Content-Type-Options", "nosniff")
@@ -74,8 +67,8 @@ def _apply_browser_security_headers_api(request: Request, response: Response) ->
     _set_header_if_absent(h, "Permissions-Policy", _PERMISSIONS_POLICY)
     _set_header_if_absent(h, "Referrer-Policy", "strict-origin-when-cross-origin")
     _set_header_if_absent(h, "X-Frame-Options", "DENY")
-    if _request_is_https(request):
-        _set_header_if_absent(h, "Strict-Transport-Security", "max-age=15552000")
+    # Always set so probes see HSTS; UAs ignore it on cleartext.
+    _set_header_if_absent(h, "Strict-Transport-Security", "max-age=15552000")
 
 
 app = FastAPI(title="default-api-json", version="0.0.1")

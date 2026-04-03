@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.5] - 2026-04-03
+- Always send `Strict-Transport-Security` on responses (see default-html 0.0.8 changelog).
+
 ## [0.0.4] - 2026-04-03
 - Browser security headers: tight JSON CSP (+ report-only), COOP, CORP `cross-origin` (CORS-friendly), Permissions-Policy, Referrer-Policy, X-Frame-Options; HSTS when HTTPS / `X-Forwarded-Proto: https`.
 

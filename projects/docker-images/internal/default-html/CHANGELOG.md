@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.8] - 2026-04-03
+- Always send `Strict-Transport-Security` (not only when HTTPS / `X-Forwarded-Proto`) so security scans against direct :8080 still see the header; browsers ignore HSTS on cleartext.
+
 ## [0.0.7] - 2026-04-03
 - Browser security headers: CSP (+ report-only mirror), COOP, CORP, Permissions-Policy, Referrer-Policy, X-Frame-Options; HSTS when the request is HTTPS or `X-Forwarded-Proto: https`.
 

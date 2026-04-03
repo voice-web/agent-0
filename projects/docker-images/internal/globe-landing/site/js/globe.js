@@ -5,7 +5,7 @@
 import * as THREE from "three";
 
 /** Bump with `version.txt`, `index.html` `?v=`, and docker tag together. */
-const GLOBE_SCRIPT_ASSET_TAG = "0.0.6";
+const GLOBE_SCRIPT_ASSET_TAG = "0.0.7";
 
 const GLOBE_SEL = ".globe";
 const TEXTURE = "assets/earth-equirect.jpg";

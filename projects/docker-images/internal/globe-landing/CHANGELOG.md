@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.7] - 2026-04-03
+- Always send `Strict-Transport-Security` on all responses (see default-html 0.0.8 changelog).
+
 ## [0.0.6] - 2026-04-03
 - Static server: same browser security header bundle as `default-html` (CSP, COOP, CORP, Permissions-Policy, Referrer-Policy, X-Frame-Options, conditional HSTS).
 
