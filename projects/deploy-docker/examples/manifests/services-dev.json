@@ -4,7 +4,7 @@
   "logical_services": [
     {
       "name": "default-html",
-      "image": { "ref": "local/default-html:0.0.1" },
+      "image": { "ref": "local/default-html:0.0.2" },
       "runtime": {
         "ports": [{ "container": 8080, "published": null }],
         "env": {

@@ -199,13 +199,8 @@ GLOB
 	}
 '
   else
-    login_block='
-	# globe-landing disabled by environment config
-	@login path /login*
-	handle @login {
-		respond "globe-landing disabled" 404
-	}
-'
+    # No /login split — requests fall through to default-html (or its 404).
+    login_block=""
   fi
 
   cat >"$out_file" <<EOF
@@ -351,7 +346,7 @@ if includes_manifest infra; then
   EXPECTED_IMAGES+=("local/caddy:2.8.4" "local/keycloak:26.0.5")
 fi
 if includes_manifest application && [[ "$DEFAULT_HTML_ENABLED" == "true" ]]; then
-  EXPECTED_IMAGES+=("local/default-html:0.0.1")
+  EXPECTED_IMAGES+=("local/default-html:0.0.2")
 fi
 if includes_manifest application && [[ "$DEFAULT_API_ENABLED" == "true" ]]; then
   EXPECTED_IMAGES+=("local/default-api-json:0.0.1")
@@ -458,9 +453,9 @@ elif [[ "$ENVIRONMENT" == "oci-vm" ]]; then
   echo "- auth.worldcliques.org -> keycloak (/auth on upstream)"
   echo "- HTML hosts (WC_OCI_HTML_HOSTS or default worldcliques.org) -> default-html"
   if [[ "$GLOBE_LANDING_ENABLED" == "true" ]]; then
-    echo "- /login/ on those hosts -> globe-landing (/login -> 308 /login/ for correct relative assets)"
+    echo "- /login/ on HTML hosts -> globe-landing (/login -> 308 /login/ for correct relative assets)"
   else
-    echo "- /login* on wc hosts -> 404 (globe-landing disabled in config)"
+    echo "- globe-landing disabled: /login handled by default-html like any other path"
   fi
 fi
 

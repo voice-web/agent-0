@@ -20,10 +20,15 @@ services:
     env_file:
       - "${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/oci-vm/keycloak.env}"
     environment:
-      KC_PROXY: "edge"
+      # TLS terminates at Caddy; Keycloak must advertise the browser-facing URLs (scheme + host + /auth).
+      KC_PROXY_HEADERS: "xforwarded"
+      KC_HTTP_ENABLED: "true"
       KC_HTTP_RELATIVE_PATH: "/auth"
       KC_HOSTNAME: "auth.worldcliques.org"
       KC_HOSTNAME_STRICT: "false"
+      # Override if you use HTTP-only or a different public URL (scheme + host + /auth).
+      KC_HOSTNAME_URL: "${KEYCLOAK_PUBLIC_URL:-https://auth.worldcliques.org/auth}"
+      KC_HOSTNAME_ADMIN_URL: "${KEYCLOAK_PUBLIC_URL:-https://auth.worldcliques.org/auth}"
     networks:
       - wc-net
     restart: unless-stopped

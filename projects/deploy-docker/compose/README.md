@@ -23,10 +23,9 @@ Keycloak admin credentials:
 Caddy listens on **:80** and **:443** (automatic HTTPS for the public hostnames unless `WC_CADDY_TLS=internal` when generating the Caddyfile).
 
 - `api.worldcliques.org` → `default-api-json`
-- `auth.worldcliques.org` → `keycloak` (paths include `/auth` per `KC_HTTP_RELATIVE_PATH`)
-- Explicit HTML hosts only (default **`worldcliques.org`**; set **`WC_OCI_HTML_HOSTS`** e.g. to `worldcliques.org, www.worldcliques.org` when you have DNS for each) → `default-html`
-- **`/login/`** on those hosts → `globe-landing` (**when enabled**); **`/login`** redirects to **`/login/`** so assets load; prefix `/login` is stripped for the upstream
-- Keycloak remains on `auth.worldcliques.org` (and `/auth` paths there)
+- `auth.worldcliques.org` → `keycloak` (`KC_HTTP_RELATIVE_PATH=/auth`; **`KC_HOSTNAME_URL`** defaults to **`https://auth.worldcliques.org/auth`** — override with **`KEYCLOAK_PUBLIC_URL`** if needed)
+- Explicit HTML hosts only (default **`worldcliques.org`**; set **`WC_OCI_HTML_HOSTS`** when you need more) → `default-html` (image **0.0.2+** bundles the earth texture under `/assets/`)
+- **`/login/*`** → `globe-landing` **only when** `globe-landing` is enabled in config; otherwise `/login` is served by default-html
 
 Per-hostname HTTP-01 certs are the default (no `*.worldcliques.org` in Caddy). For a lab VM use `WC_CADDY_TLS=internal` and trust Caddy's local CA (or use `/etc/hosts` + browser exceptions).
 

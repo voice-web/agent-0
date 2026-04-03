@@ -125,19 +125,21 @@ Config flags:
 
 Compose:
 
-- `compose/infra-oci-vm.yml` — Caddy **80+443**, Keycloak (`KC_HOSTNAME=auth.worldcliques.org`)
+- `compose/infra-oci-vm.yml` — Caddy **80+443**, Keycloak (public URLs for admin + realms via **`KC_HOSTNAME_URL`** / **`KC_HOSTNAME_ADMIN_URL`**, default **`https://auth.worldcliques.org/auth`**; Caddy terminates TLS, Keycloak uses **`KC_PROXY_HEADERS=xforwarded`** and **`KC_HTTP_ENABLED=true`**)
 - `compose/application-oci-vm.yml` — app services on `wc-oci-vm-net`
 
 Caddyfile is written to `.generated/Caddyfile-oci-vm` when you start **infra** (same as local). Reference copy: `examples/routing/Caddyfile-oci-vm`.
 
-**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak. **Default HTML + `/login`:** only **explicit** hostnames (default **`worldcliques.org`** only — no `*.worldcliques.org` in Caddy). When `globe-landing` is enabled, **`/login/`** and **`/login/...`** proxy to globe-landing with the `/login` prefix stripped; **`/login`** (no slash) is **redirected to `/login/`** so relative `css/`, `js/`, and `assets/` URLs resolve correctly in the browser.
+**Host routing (summary):** `api.worldcliques.org` → API JSON; `auth.worldcliques.org` → Keycloak. **Default HTML:** only **explicit** hostnames (default **`worldcliques.org`**). When **`globe-landing`** is enabled in `configs/oci-vm.json`, **`/login`** is redirected to **`/login/`** and **`/login/*`** goes to globe-landing (prefix stripped). When disabled, **`/login`** is just another path on default-html.
+
+**Keycloak public URL:** defaults to **`https://auth.worldcliques.org/auth`**. If you run **HTTP-only** or a different edge URL, set **`KEYCLOAK_PUBLIC_URL`** before compose (same value used for **`KC_HOSTNAME_URL`** and **`KC_HOSTNAME_ADMIN_URL`**), e.g. `export KEYCLOAK_PUBLIC_URL='http://auth.worldcliques.org/auth'`.
 
 **DNS (typical):** create **`A`/`AAAA`** for each name Caddy serves: at minimum **`worldcliques.org`**, **`api`**, **`auth`**. Add **`www.worldcliques.org`** (and any other vhosts) by setting **`WC_OCI_HTML_HOSTS`** (comma-separated) before `up.sh` so TLS is only requested for names you have in DNS. **TLS:** HTTP-01 needs resolvable names and reachable :80/:443. For testing without public DNS, set `WC_CADDY_TLS=internal` before `up.sh` so the generated Caddyfile uses `tls internal`.
 
 Optional:
 
 - `WC_CADDY_ACME_EMAIL` — set globally in the generated Caddyfile for ACME registration.
-- `WC_OCI_HTML_HOSTS` — e.g. `worldcliques.org, www.worldcliques.org` (comma-separated site addresses for default-html and `/login`).
+- `WC_OCI_HTML_HOSTS` — e.g. `worldcliques.org, www.worldcliques.org` (comma-separated site addresses for default-html and optional `/login`).
 
 ## Reference files (for review)
 

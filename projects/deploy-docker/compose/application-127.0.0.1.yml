@@ -1,6 +1,6 @@
 services:
   default-html:
-    image: "local/default-html:0.0.1"
+    image: "local/default-html:0.0.2"
     environment:
       BASIC_HTTP_ROOT: "/srv/www"
       PORT: "8080"

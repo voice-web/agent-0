@@ -124,7 +124,10 @@ async function init() {
           resolve(true);
         },
         undefined,
-        () => resolve(false)
+        (err) => {
+          console.warn("default-html globe: texture load failed:", EARTH_TEXTURE_URL, err);
+          resolve(false);
+        }
       );
     });
   } catch (_) {
