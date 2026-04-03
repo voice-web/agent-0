@@ -4,6 +4,9 @@
  */
 import * as THREE from "three";
 
+/** Bump with `version.txt`, `index.html` `?v=`, and docker tag together. */
+const GLOBE_SCRIPT_ASSET_TAG = "0.0.5";
+
 const GLOBE_SEL = ".globe";
 const TEXTURE = "assets/earth-equirect.jpg";
 const IMAGE_ASSET_DIR = "assets/images";
@@ -396,6 +399,7 @@ function enhanceEarthTexture(texture, tone) {
 async function main() {
   const container = document.querySelector(GLOBE_SEL);
   if (!container) return;
+  console.info("[globe-landing] globe.js", GLOBE_SCRIPT_ASSET_TAG);
   const actorId = getActorId();
   let actorConfig = null;
   try {
@@ -810,22 +814,38 @@ async function main() {
   const TILT_MARGIN = 1.08;
 
   function resize() {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w < 1 || h < 1) return;
+    // getBoundingClientRect() after layout tends to match paint better than clientWidth/Height
+    // during resize drags (especially vertical / mobile visual viewport).
+    const rect = container.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     const d = minDistanceForSphereToFitView(camera, SPHERE_RADIUS) * TILT_MARGIN;
     camera.position.z = d;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(w, h, false);
+    renderFrame();
   }
 
-  const ro = new ResizeObserver(resize);
+  let resizeRaf = 0;
+  function scheduleResize() {
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      resize();
+    });
+  }
+
+  const ro = new ResizeObserver(() => scheduleResize());
   ro.observe(container);
   window.addEventListener("resize", () => {
+    scheduleResize();
     starsDirty = true;
     applyStars();
   });
+  window.visualViewport?.addEventListener?.("resize", scheduleResize);
+  window.visualViewport?.addEventListener?.("scroll", scheduleResize);
   resize();
 
   function animate() {

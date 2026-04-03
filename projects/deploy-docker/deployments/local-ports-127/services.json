@@ -48,7 +48,7 @@
     },
     {
       "name": "globe-landing",
-      "image": "local/globe-landing:0.0.2",
+      "image": "local/globe-landing:0.0.5",
       "optional": true,
       "config_flag": "globe-landing",
       "environment": { "PORT": "8080" },

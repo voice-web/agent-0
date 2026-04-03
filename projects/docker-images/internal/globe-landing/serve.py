@@ -13,6 +13,13 @@ class _StaticHandler(http.server.SimpleHTTPRequestHandler):
         return "httpd"
 
     def end_headers(self) -> None:
+        path_only = (self.path.split("?", 1)[0] or "").lower()
+        if path_only in ("/", "/index.html", "/actor.html") or path_only.endswith(
+            (".html", ".js", ".css", ".json")
+        ):
+            # Avoid stale globe.js / HTML after image rebuilds (browser disk cache is aggressive).
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
+            self.send_header("Pragma", "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
