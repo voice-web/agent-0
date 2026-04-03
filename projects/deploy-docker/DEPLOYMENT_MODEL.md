@@ -30,7 +30,7 @@ This document is the **single place** we align on how routing, manifests, config
 | Environment config | `config.json` | Merged into compose env / passed to compilers |
 | **Resolved bundle** | (derived) | **`resolved.json`** — fully merged inputs + computed values after overlays (for debug, audit, and “what we actually applied”) |
 
-**Generated root** (`.generated/`): **this is what operators use for `docker compose`.** Hand-maintained `compose/*.yml` and static `examples/routing/Caddyfile-*` were removed; the only long-lived sources are **`deployments/`** JSON and **`compile.py`**. Do not reintroduce duplicate Caddyfiles or parallel compose “examples” in git—extend bundles under `deployments/` instead. Layout sketch:
+**Generated root** (`.generated/`): **this is what operators use for `docker compose`.** The only long-lived sources are **`deployments/`** JSON and **`compile.py`**. Do not add hand-maintained compose files or duplicate Caddyfiles in git—extend bundles under `deployments/` instead. Layout sketch:
 
 - `.generated/edge/` — Compose project for **Caddy (or future ingress)** + merged `Caddyfile`
 - `.generated/deployments/<deployment_id>/` — Compose project(s) for **application stacks** that attach to the shared network
@@ -191,4 +191,4 @@ To avoid rework when schemas/manifests/routing move out of `agent-0`:
 - **2026-04-02** — Initial consolidated model (routing + manifest + config, shared edge, Flux-like flow, labels, multi-repo evolution).
 - **2026-04-02** — Multi-project Compose as preferred (infra edge vs app teams); generated compose is authoritative; strict validate/conflict checks; `resolved.json` formalized.
 - **2026-04-02** — Post-migration cleanup: no long-lived legacy compose or hand Caddy examples in-tree; samples are JSON inputs only.
-- **2026-04-03** — Removed legacy `compose/*.yml`, `examples/routing/Caddyfile-*`, split `configs/*.json`, and pre-bundle `examples/manifests` / `examples/configs`; stubs under `compose/README.md` and `configs/README.md` explain the move to `deployments/`.
+- **2026-04-03** — Removed legacy `compose/*.yml`, `examples/routing/Caddyfile-*`, split `configs/*.json`, and pre-bundle `examples/`; later removed empty `compose/`, `configs/`, and `examples/` directories entirely.

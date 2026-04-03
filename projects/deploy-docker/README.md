@@ -1,6 +1,6 @@
 # deploy-docker (reference)
 
-This directory is a **reference implementation** (mostly docs + examples) for how to separate deployment concerns over time:
+This directory is a **reference implementation** (docs + deployment bundles + compiler) for how to separate deployment concerns over time:
 
 - logical services (what you want to run)
 - environment-specific config (how you want to run it)
@@ -23,7 +23,6 @@ The goal is to let you review the “model” first, then implement it in code i
 - **`deployments/<id>/`** — one bundle per target: `deployment.json`, `routing.json`, `services.json`, `config.json`
 - **`schemas/`** — JSON Schema for those inputs
 - **`scripts/compile.py`** — validates (optional) and writes **`.generated/<id>/`** (Caddyfile, compose, `resolved.json`)
-- **`compose/`**, **`configs/`** — stubs only; legacy files were removed (see each `README.md` there)
 
 ## How to review this reference
 
