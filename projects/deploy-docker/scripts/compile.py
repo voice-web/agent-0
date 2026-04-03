@@ -92,6 +92,7 @@ def emit_local_path_caddy(config: dict, path: Path) -> None:
     lines = [
         ":80 {",
         "\tencode zstd gzip",
+        "\theader -Server",
         "",
         "\thandle_path /api/* {",
         "\t\treverse_proxy default-api-json:8080",
@@ -176,6 +177,7 @@ def emit_local_ports_caddy(
     def proxy_block(port: int, upstream: str) -> None:
         blocks.append(f":{port} {{")
         blocks.append("\tencode zstd gzip")
+        blocks.append("\theader -Server")
         blocks.append(f"\treverse_proxy {upstream}:8080 {{")
         blocks.append("\t\t# Avoid HSTS on plain HTTP local dev (esp. Keycloak).")
         blocks.append("\t\theader_down -Strict-Transport-Security")
@@ -236,6 +238,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
     if service_enabled(config, "default-api-json", default=True):
         api_block = f"""api.worldcliques.org {{{tls_line}
 	encode zstd gzip
+	header -Server
 	reverse_proxy default-api-json:8080
 }}
 
@@ -245,6 +248,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
     if service_enabled(config, "keycloak", default=True):
         auth_block = f"""auth.worldcliques.org {{{tls_line}
 	encode zstd gzip
+	header -Server
 	reverse_proxy keycloak:8080
 }}
 
@@ -252,6 +256,7 @@ def emit_vm_host_caddy(routing: dict, config: dict, path: Path) -> None:
 
     body = f"""{api_block}{auth_block}{html_hosts_str} {{{tls_line}
 	encode zstd gzip
+	header -Server
 {login_block}\thandle {{
 		reverse_proxy default-html:8080
 	}}

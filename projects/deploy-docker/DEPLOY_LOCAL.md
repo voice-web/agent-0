@@ -237,7 +237,7 @@ Try a different image tag **without** editing `services.json` (one-off compose o
 ```bash
 ./scripts/update.sh application local-ports-127 default-html 0.0.6
 # or full reference:
-./scripts/update.sh application local-ports-127 default-html local/default-html:0.0.6
+./scripts/update.sh application local-ports-127 default-html local/default-html:0.0.7
 ```
 
 What this does:

@@ -7,6 +7,10 @@
 #   IMAGE_PREFIX   default: local
 #   IMAGE_NAME     default: basename of service dir (e.g. caddy)
 #   DOCKER         default: docker
+#
+# TODO: Rename this script to build-image (or similar) and add a --publish-oci flag
+# that tags and pushes the same image to Oracle OCIR (e.g. REGION.ocir.io/<namespace>/<repo>:<version>),
+# reusing auth from docker login / OCI CLI env. Update README, build-changed.sh, and any callers.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

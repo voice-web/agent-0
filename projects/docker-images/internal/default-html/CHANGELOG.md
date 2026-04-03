@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.7] - 2026-04-03
+- Browser security headers: CSP (+ report-only mirror), COOP, CORP, Permissions-Policy, Referrer-Policy, X-Frame-Options; HSTS when the request is HTTPS or `X-Forwarded-Proto: https`.
+
 ## [0.0.6] - 2026-04-03
 - Fix response hardening middleware: Starlette `MutableHeaders` has no `pop()` in some versions; remove `server` / `x-powered-by` by key iteration instead.
 

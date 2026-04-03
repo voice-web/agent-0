@@ -31,7 +31,7 @@ Mount the globe-landing site assets into matching paths under `/srv/www`.
 Example (illustrative; adapt paths to your compose layout):
 ```yaml
   default-html:
-    image: local/default-html:0.0.6
+    image: local/default-html:0.0.7
     volumes:
       - ./path/to/globe-landing/site/css:/srv/www/css:ro
       - ./path/to/globe-landing/site/js:/srv/www/js:ro

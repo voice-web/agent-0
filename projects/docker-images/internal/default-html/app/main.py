@@ -66,15 +66,57 @@ def _strip_leaky_response_headers(headers) -> None:
             del headers[key]
 
 
+# Inline importmap + error.html inline styles; Three.js from unpkg.
+_CSP_HTML = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self'; "
+    "connect-src 'self' https://unpkg.com; "
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+)
+
+_PERMISSIONS_POLICY = (
+    "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+    "magnetometer=(), microphone=(), payment=(), usb=()"
+)
+
+
+def _request_is_https(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    xf = request.headers.get("x-forwarded-proto", "")
+    return xf.split(",", 1)[0].strip().lower() == "https"
+
+
+def _set_header_if_absent(headers, name: str, value: str) -> None:
+    if name.lower() not in headers:
+        headers[name] = value
+
+
+def _apply_browser_security_headers_html(request: Request, response: Response) -> None:
+    h = response.headers
+    _strip_leaky_response_headers(h)
+    _set_header_if_absent(h, "X-Content-Type-Options", "nosniff")
+    _set_header_if_absent(h, "Content-Security-Policy", _CSP_HTML)
+    _set_header_if_absent(h, "Content-Security-Policy-Report-Only", _CSP_HTML)
+    _set_header_if_absent(h, "Cross-Origin-Opener-Policy", "same-origin")
+    _set_header_if_absent(h, "Cross-Origin-Resource-Policy", "same-origin")
+    _set_header_if_absent(h, "Permissions-Policy", _PERMISSIONS_POLICY)
+    _set_header_if_absent(h, "Referrer-Policy", "strict-origin-when-cross-origin")
+    _set_header_if_absent(h, "X-Frame-Options", "DENY")
+    if _request_is_https(request):
+        _set_header_if_absent(h, "Strict-Transport-Security", "max-age=15552000")
+
+
 app = FastAPI(title="default-html", version="0.0.1")
 
 
 class _HardenResponseHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        _strip_leaky_response_headers(response.headers)
-        if "x-content-type-options" not in response.headers:
-            response.headers["X-Content-Type-Options"] = "nosniff"
+        _apply_browser_security_headers_html(request, response)
         return response
 
 

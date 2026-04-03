@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.6] - 2026-04-03
+- Static server: same browser security header bundle as `default-html` (CSP, COOP, CORP, Permissions-Policy, Referrer-Policy, X-Frame-Options, conditional HSTS).
+
 ## [0.0.5] - 2026-04-03
 - Static server: `Cache-Control: no-cache` for `.html` / `.js` / `.css` / `.json` so rebuilt images are not masked by browser disk cache.
 - `index.html`: cache-bust query on `globe.js` and `styles.css`; `console.info` logs script tag so DevTools proves the loaded bundle.

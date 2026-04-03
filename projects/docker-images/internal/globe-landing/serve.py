@@ -7,6 +7,22 @@ import http.server
 import os
 import socketserver
 
+# Match default-html: inline importmap + unpkg Three.js.
+_CSP_HTML = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self'; "
+    "connect-src 'self' https://unpkg.com; "
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+)
+
+_PERMISSIONS_POLICY = (
+    "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+    "magnetometer=(), microphone=(), payment=(), usb=()"
+)
+
 
 class _StaticHandler(http.server.SimpleHTTPRequestHandler):
     def version_string(self) -> str:
@@ -21,6 +37,16 @@ class _StaticHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache, must-revalidate")
             self.send_header("Pragma", "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", _CSP_HTML)
+        self.send_header("Content-Security-Policy-Report-Only", _CSP_HTML)
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        self.send_header("Permissions-Policy", _PERMISSIONS_POLICY)
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.send_header("X-Frame-Options", "DENY")
+        xf = self.headers.get("X-Forwarded-Proto", "")
+        if xf.split(",", 1)[0].strip().lower() == "https":
+            self.send_header("Strict-Transport-Security", "max-age=15552000")
         super().end_headers()
 
 
