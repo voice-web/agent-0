@@ -6,8 +6,11 @@ For common failures (Keycloak / HSTS in Chrome, stale containers, secrets, image
 
 ## What it does
 
-Single entrypoint script:
-- `up.sh <infra|application> 127.0.0.1`
+Scripts take a **deployment dirname**: the folder name under **`deployments/`** (e.g. **`local-path-127`**, **`vm-host-oci`**). Add **`deployments/<new-name>/`** with the usual JSON files to support a new target—no alias tables in the shell scripts.
+
+Single entrypoint:
+- `./scripts/up.sh <deployment-dirname>` — infra + application
+- `./scripts/up.sh infra <deployment-dirname>` / `application <deployment-dirname>` — staged bring-up
 
 The script is designed so you can:
 1. Bring up **infra** first (Caddy + Keycloak + shared docker network).
@@ -15,14 +18,15 @@ The script is designed so you can:
 
 ## Commands
 
-You can use either:
-- Legacy: `./scripts/up.sh <infra|application> <127.0.0.1>`
-- New: `./scripts/up.sh <127.0.0.1> <infra|application> [more...]`
+Either order for infra/application:
+
+- `./scripts/up.sh <deployment-dirname> [infra] [application] ...`
+- `./scripts/up.sh infra|application <deployment-dirname>`
 
 ### Bring up infra only
 
 ```bash
-./scripts/up.sh infra 127.0.0.1
+./scripts/up.sh infra local-path-127
 ```
 
 Expected:
@@ -33,14 +37,16 @@ Expected:
 ### Bring up application only (infra must already be up)
 
 ```bash
-./scripts/up.sh application 127.0.0.1
+./scripts/up.sh application local-path-127
 ```
 
 ### Bring up infra + application (one command)
 
 ```bash
-./scripts/up.sh 127.0.0.1 infra application
+./scripts/up.sh local-path-127
 ```
+
+(or `./scripts/up.sh local-path-127 infra application`)
 
 Expected:
 - starts `default-html` and `default-api-json` (and other enabled app services)
@@ -67,7 +73,7 @@ Example:
 }
 ```
 
-Set `"enabled": false` to disable a service for this environment.
+Set `"enabled": false` to disable a service, then re-run **`./scripts/up.sh local-path-127`** (compile runs on each `up.sh`).
 
 ## Local routing contract (Caddyfile)
 
@@ -79,7 +85,7 @@ Caddy listens on port `80` and uses **path-based routing**:
 
 ## Defaults / environment variables
 
-The script supports environment arguments: `127.0.0.1` (path-based routing on :80) and `oci-vm` (host-based routing on :80 and :443).
+Bundles included here: **`local-path-127`** (path-based routing on :80 at **`127.0.0.1`**) and **`vm-host-oci`** (hostname routing on :80 and :443). Secrets paths still use **`env_name`** inside each bundle’s **`config.json`** (e.g. **`127.0.0.1`** / **`oci-vm`** under **`~/.secrets/worldcliques/`**).
 
 You can override these by exporting before running:
 - `KEYCLOAK_ENV_FILE` (default: `~/.secrets/worldcliques/<environment>/keycloak.env`)
@@ -107,14 +113,14 @@ KEYCLOAK_ADMIN_PASSWORD=change-me
 EOF
 ```
 
-If you want a different location, set `KEYCLOAK_ENV_FILE` before running `./scripts/up.sh infra ...`.
+If you want a different location, set `KEYCLOAK_ENV_FILE` before running `./scripts/up.sh infra local-path-127` (or your bundle name).
 
-## oci-vm (Oracle VM / public DNS)
+## Oracle VM / public DNS (`vm-host-oci`)
 
-Deployment bundle: **`vm-host-oci`** (alias **`oci-vm`**). Same script shapes:
+Deployment dirname: **`vm-host-oci`**. Same script shapes:
 
 ```bash
-./scripts/up.sh oci-vm infra application
+./scripts/up.sh vm-host-oci infra application
 ```
 
 Secrets file (default):
@@ -140,7 +146,7 @@ Optional:
 - **Sources:** `deployments/local-path-127/`, `deployments/vm-host-oci/`, `schemas/`
 - **Compiler:** `scripts/compile.py`
 - **Operators:** `scripts/up.sh`, `scripts/down.sh`, `scripts/update.sh`, `scripts/print_routes.py`
-- **Outputs (local, not in git):** `.generated/<deployment_id>/` — `Caddyfile`, `edge/docker-compose.yml`, `app/docker-compose.yml`, `resolved.json`
+- **Outputs (local, not in git):** `.generated/<sanitized deployment_id>/` — `Caddyfile`, `edge/docker-compose.yml`, `app/docker-compose.yml`, `resolved.json` (see **`deployment.json`** → **`deployment_id`**; usually matches the bundle dirname)
 
 ## Bring down
 
@@ -149,7 +155,7 @@ Stop everything started for this environment.
 ### Bring down without removing named volumes
 
 ```bash
-./scripts/down.sh 127.0.0.1
+./scripts/down.sh local-path-127
 ```
 
 This uses `docker compose down --remove-orphans` for the infra and application compose files.
@@ -157,7 +163,7 @@ This uses `docker compose down --remove-orphans` for the infra and application c
 ### Bring down and remove volumes (destructive)
 
 ```bash
-./scripts/down.sh --volumes 127.0.0.1
+./scripts/down.sh --volumes local-path-127
 ```
 
 This also removes named volumes like Caddy’s TLS/ACME storage and Keycloak persistence (depending on how those are configured).
@@ -167,13 +173,13 @@ This also removes named volumes like Caddy’s TLS/ACME storage and Keycloak per
 If you rebuilt an image (even with the same tag) and want to refresh a single running container:
 
 ```bash
-./scripts/update.sh <infra|application> 127.0.0.1 <service>
+./scripts/update.sh <infra|application> <deployment-dirname> <service>
 ```
 
 Example:
 
 ```bash
-./scripts/update.sh application 127.0.0.1 globe-landing
+./scripts/update.sh application local-path-127 globe-landing
 ```
 
 What this does:

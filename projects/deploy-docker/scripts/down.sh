@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Tear down deployment stacks (application project first, then edge / network).
 # Usage:
-#   ./scripts/down.sh [--volumes] <local-path-127|vm-host-oci|127.0.0.1|oci-vm>
+#   ./scripts/down.sh [--volumes] <deployment-dirname>
+#   e.g. local-path-127, vm-host-oci (directory name under deployments/)
 
 VOL_OPTS=()
 if [[ "${1:-}" == "--volumes" ]]; then
@@ -11,32 +12,27 @@ if [[ "${1:-}" == "--volumes" ]]; then
   shift
 fi
 
-DEPLOYMENT_ID="${1:-}"
-if [[ -z "$DEPLOYMENT_ID" ]]; then
-  echo "Usage: $0 [--volumes] <deployment>" >&2
+DEPLOYMENT_DIRNAME="${1:-}"
+if [[ -z "$DEPLOYMENT_DIRNAME" ]]; then
+  echo "Usage: $0 [--volumes] <deployment-dirname>" >&2
   exit 2
 fi
-
-case "$DEPLOYMENT_ID" in
-  127.0.0.1) DEPLOYMENT_ID="local-path-127" ;;
-  oci-vm) DEPLOYMENT_ID="vm-host-oci" ;;
-esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 export GLOBE_LANDING_ASSETS="${GLOBE_LANDING_ASSETS:-/Users/ray.jimenez/worldcliques/git/vap/projects/globe-landing/site/assets}"
 
-DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_ID"
+DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_DIRNAME"
 if [[ ! -f "$DEPLOY_DIR/deployment.json" ]]; then
-  echo "Unknown deployment: $DEPLOYMENT_ID" >&2
+  echo "Unknown deployment: $DEPLOYMENT_DIRNAME" >&2
   exit 2
 fi
 
 echo "==> compile (for compose paths)"
-python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_ID" >/dev/null
+python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_DIRNAME" >/dev/null
 
-GENDIR="$ROOT_DIR/.generated/$DEPLOYMENT_ID"
+GENDIR="$(python3 "$ROOT_DIR/scripts/bundle_paths.py" gendir "$DEPLOYMENT_DIRNAME")"
 RESOLVED="$GENDIR/resolved.json"
 
 EDGE_PROJECT="$(

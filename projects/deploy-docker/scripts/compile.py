@@ -498,7 +498,8 @@ def compile_deployment(deployment_dir: Path) -> Path:
 def main() -> None:
     if len(sys.argv) != 2:
         sys.stderr.write(
-            f"Usage: {sys.argv[0]} <deployment_id | path-to-deployment-dir>\n"
+            f"Usage: {sys.argv[0]} <deployment-dirname | path-to-deployment-dir>\n"
+            "  dirname: folder name under deployments/ (e.g. local-path-127)\n"
         )
         sys.exit(2)
     arg = sys.argv[1]

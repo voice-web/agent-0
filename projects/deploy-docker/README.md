@@ -34,5 +34,5 @@ The goal is to let you review the “model” first, then implement it in code i
 
 - Local bring-up commands and secrets paths: `DEPLOY_LOCAL.md`
 - Operational issues (browser HSTS, recreate after config changes, compose errors): `TROUBLESHOOTING.md`
-- Re-print route URLs (same deployment args as `up.sh`, e.g. `127.0.0.1`): `python3 scripts/print_routes.py 127.0.0.1` — add `--compile` to refresh `resolved.json` first
+- Re-print route URLs (same **deployment dirname** as `up.sh`, e.g. `local-path-127`): `python3 scripts/print_routes.py local-path-127` — add `--compile` to refresh `resolved.json` first
 

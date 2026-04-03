@@ -4,46 +4,38 @@ set -euo pipefail
 # Bring up stacks from compiled deployment bundles (see DEPLOYMENT_MODEL.md).
 #
 # Usage:
-#   ./scripts/up.sh <deployment> [infra] [application] ...
-#   ./scripts/up.sh <deployment>                    # infra + application
-#   ./scripts/up.sh infra <deployment>              # legacy
-#   ./scripts/up.sh application <deployment>      # legacy
+#   ./scripts/up.sh <deployment-dirname> [infra|application] ...
+#   ./scripts/up.sh <deployment-dirname>                    # infra + application
+#   ./scripts/up.sh infra <deployment-dirname>
+#   ./scripts/up.sh application <deployment-dirname>
 #
-# Deployments: local-path-127 (alias 127.0.0.1), vm-host-oci (alias oci-vm)
+# <deployment-dirname> is the directory under deployments/, e.g. local-path-127, vm-host-oci.
 
 REQUESTED_MANIFESTS=()
-DEPLOYMENT_ID=""
+DEPLOYMENT_DIRNAME=""
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 export GLOBE_LANDING_ASSETS="${GLOBE_LANDING_ASSETS:-/Users/ray.jimenez/worldcliques/git/vap/projects/globe-landing/site/assets}"
 
-map_deployment_id() {
-  case "${1:-}" in
-    127.0.0.1) echo "local-path-127" ;;
-    oci-vm) echo "vm-host-oci" ;;
-    *) echo "$1" ;;
-  esac
-}
-
 if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <deployment> [infra|application ...]" >&2
-  echo "       $0 infra|application <deployment>" >&2
+  echo "Usage: $0 <deployment-dirname> [infra|application ...]" >&2
+  echo "       $0 infra|application <deployment-dirname>" >&2
   exit 2
 fi
 
 case "$1" in
   infra|application)
     REQUESTED_MANIFESTS=("$1")
-    DEPLOYMENT_ID="$(map_deployment_id "${2:-}")"
-    if [[ -z "$DEPLOYMENT_ID" || -n "${3:-}" ]]; then
-      echo "Usage: $0 <infra|application> <deployment>" >&2
+    DEPLOYMENT_DIRNAME="${2:-}"
+    if [[ -z "$DEPLOYMENT_DIRNAME" || -n "${3:-}" ]]; then
+      echo "Usage: $0 <infra|application> <deployment-dirname>" >&2
       exit 2
     fi
     ;;
   *)
-    DEPLOYMENT_ID="$(map_deployment_id "$1")"
+    DEPLOYMENT_DIRNAME="$1"
     shift
     if [[ $# -eq 0 ]]; then
       REQUESTED_MANIFESTS=(infra application)
@@ -53,9 +45,9 @@ case "$1" in
     ;;
 esac
 
-DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_ID"
+DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_DIRNAME"
 if [[ ! -f "$DEPLOY_DIR/deployment.json" ]]; then
-  echo "Unknown deployment '$DEPLOYMENT_ID' (no $DEPLOY_DIR/deployment.json)" >&2
+  echo "Unknown deployment '$DEPLOYMENT_DIRNAME' (no $DEPLOY_DIR/deployment.json)" >&2
   exit 2
 fi
 
@@ -95,10 +87,10 @@ includes_manifest() {
   return 1
 }
 
-echo "==> compile: deployment=$DEPLOYMENT_ID"
-python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_ID"
+echo "==> compile: deployment=$DEPLOYMENT_DIRNAME"
+python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_DIRNAME"
 
-GENDIR="$ROOT_DIR/.generated/$DEPLOYMENT_ID"
+GENDIR="$(python3 "$ROOT_DIR/scripts/bundle_paths.py" gendir "$DEPLOYMENT_DIRNAME")"
 RESOLVED="$GENDIR/resolved.json"
 
 EDGE_PROJECT="$(
@@ -181,4 +173,4 @@ echo "==> Generated: $GENDIR — see resolved.json"
 echo "    Edge project: $EDGE_PROJECT"
 echo "    App project:  $APP_PROJECT"
 
-python3 "$ROOT_DIR/scripts/print_routes.py" "$DEPLOYMENT_ID"
+python3 "$ROOT_DIR/scripts/print_routes.py" "$DEPLOYMENT_DIRNAME"

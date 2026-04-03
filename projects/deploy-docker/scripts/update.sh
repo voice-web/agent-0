@@ -3,18 +3,18 @@ set -euo pipefail
 
 # Recreate one service container (picks up rebuilt images with same tag).
 # Usage:
-#   ./scripts/update.sh <infra|application> <deployment> <service>
+#   ./scripts/update.sh <infra|application> <deployment-dirname> <service>
 #
 # Example:
 #   ./scripts/update.sh application local-path-127 globe-landing
 #   ./scripts/update.sh infra vm-host-oci caddy
 
 MANIFEST_SET="${1:-}"
-DEPLOYMENT_ID="${2:-}"
+DEPLOYMENT_DIRNAME="${2:-}"
 SERVICE_NAME="${3:-}"
 
-if [[ -z "$MANIFEST_SET" || -z "$DEPLOYMENT_ID" || -z "$SERVICE_NAME" ]]; then
-  echo "Usage: $0 <infra|application> <deployment> <service>" >&2
+if [[ -z "$MANIFEST_SET" || -z "$DEPLOYMENT_DIRNAME" || -z "$SERVICE_NAME" ]]; then
+  echo "Usage: $0 <infra|application> <deployment-dirname> <service>" >&2
   exit 2
 fi
 
@@ -26,23 +26,22 @@ case "$MANIFEST_SET" in
     ;;
 esac
 
-case "$DEPLOYMENT_ID" in
-  127.0.0.1) DEPLOYMENT_ID="local-path-127" ;;
-  oci-vm) DEPLOYMENT_ID="vm-host-oci" ;;
-esac
-
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 export GLOBE_LANDING_ASSETS="${GLOBE_LANDING_ASSETS:-/Users/ray.jimenez/worldcliques/git/vap/projects/globe-landing/site/assets}"
-DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_ID"
+DEPLOY_DIR="$ROOT_DIR/deployments/$DEPLOYMENT_DIRNAME"
+if [[ ! -f "$DEPLOY_DIR/deployment.json" ]]; then
+  echo "Unknown deployment: $DEPLOYMENT_DIRNAME" >&2
+  exit 2
+fi
 CONFIG_ENV_NAME="$(
   python3 -c "import json, pathlib; print(json.loads(pathlib.Path('$DEPLOY_DIR/config.json').read_text())['env_name'])"
 )"
 export KEYCLOAK_ENV_FILE="${KEYCLOAK_ENV_FILE:-${HOME}/.secrets/worldcliques/${CONFIG_ENV_NAME}/keycloak.env}"
 
-python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_ID" >/dev/null
-GENDIR="$ROOT_DIR/.generated/$DEPLOYMENT_ID"
+python3 "$ROOT_DIR/scripts/compile.py" "$DEPLOYMENT_DIRNAME" >/dev/null
+GENDIR="$(python3 "$ROOT_DIR/scripts/bundle_paths.py" gendir "$DEPLOYMENT_DIRNAME")"
 RESOLVED="$GENDIR/resolved.json"
 
 if [[ "$MANIFEST_SET" == "infra" ]]; then

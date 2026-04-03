@@ -1,53 +1,48 @@
 #!/usr/bin/env python3
 """Print test_routes from a deployment's resolved.json (produced by compile.py).
 
-Same deployment arguments as up.sh, e.g.:
-  print_routes.py 127.0.0.1
-  print_routes.py local-path-127
-  print_routes.py oci-vm
+Takes the same <deployment-dirname> as up.sh — the directory name under deployments/,
+e.g. local-path-127, vm-host-oci.
 
-You can still pass a path to resolved.json if it exists (legacy).
+You can still pass an absolute path to resolved.json if that file exists.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 
-def map_deployment_id(raw: str) -> str:
-    aliases = {
-        "127.0.0.1": "local-path-127",
-        "oci-vm": "vm-host-oci",
-    }
-    return aliases.get(raw, raw)
-
-
-def sanitize(s: str) -> str:
-    """Match scripts/compile.py (output directory naming)."""
-    s = s.lower().replace(".", "-")
-    return re.sub(r"[^a-z0-9_-]+", "-", s).strip("-") or "deploy"
-
-
-def resolved_path_for_deployment(root: Path, deployment_bundle_id: str) -> Path:
-    deploy_dir = root / "deployments" / deployment_bundle_id
-    meta = json.loads((deploy_dir / "deployment.json").read_text(encoding="utf-8"))
-    deployment_id = str(meta["deployment_id"])
-    return root / ".generated" / sanitize(deployment_id) / "resolved.json"
-
-
-def run_compile(root: Path, deployment_bundle_id: str) -> None:
+def run_compile(root: Path, deployment_dirname: str) -> None:
     compile_py = root / "scripts" / "compile.py"
     r = subprocess.run(
-        [sys.executable, str(compile_py), deployment_bundle_id],
+        [sys.executable, str(compile_py), deployment_dirname],
         cwd=str(root),
         check=False,
     )
     if r.returncode != 0:
         sys.exit(r.returncode)
+
+
+def resolved_path(root: Path, deployment_dirname: str) -> Path:
+    r = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "bundle_paths.py"),
+            "gendir",
+            deployment_dirname,
+        ],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if r.returncode != 0:
+        sys.stderr.write(r.stderr)
+        sys.exit(2)
+    return Path(r.stdout.strip()) / "resolved.json"
 
 
 def print_routes_from_resolved(path: Path) -> None:
@@ -70,12 +65,11 @@ def print_routes_from_resolved(path: Path) -> None:
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser(
-        description="Print route URLs from a deployment bundle (same names as up.sh).",
+        description="Print route URLs for a deployment bundle (directory name under deployments/).",
     )
     ap.add_argument(
-        "deployment",
-        help="Deployment id or alias (127.0.0.1, oci-vm, local-path-127, …), "
-        "or path to resolved.json if that file exists.",
+        "deployment_dirname",
+        help="Name of deployments/<this> (e.g. local-path-127), or path to resolved.json.",
     )
     ap.add_argument(
         "--compile",
@@ -83,25 +77,26 @@ def main() -> None:
         help="Run compile.py before printing (refresh resolved.json).",
     )
     args = ap.parse_args()
-    raw = args.deployment
+    raw = args.deployment_dirname
     candidate = Path(raw)
 
     if candidate.is_file():
         print_routes_from_resolved(candidate.resolve())
         return
 
-    bundle_id = map_deployment_id(raw)
-    deploy_dir = root / "deployments" / bundle_id
-    if not (deploy_dir / "deployment.json").is_file():
+    name = raw.strip("/").split("/")[-1] if "/" in raw else raw
+    deploy_json = root / "deployments" / name / "deployment.json"
+    if not deploy_json.is_file():
         print(
-            f"Unknown deployment {raw!r} (no {deploy_dir / 'deployment.json'})",
+            f"Unknown deployment {raw!r} (no {deploy_json})",
             file=sys.stderr,
         )
         sys.exit(2)
 
-    resolved = resolved_path_for_deployment(root, bundle_id)
+    resolved = resolved_path(root, name)
     if args.compile or not resolved.is_file():
-        run_compile(root, bundle_id)
+        run_compile(root, name)
+        resolved = resolved_path(root, name)
     if not resolved.is_file():
         print(f"Not found after compile: {resolved}", file=sys.stderr)
         sys.exit(1)

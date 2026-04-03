@@ -232,11 +232,11 @@ OCI security list / NSG should allow:
 
 ### 9) (Optional) TLS with Let's Encrypt (ACME)
 
-Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-docker` `oci-vm`** stack (Caddy on **:80** and **:443**). Caddy requests and renews **Let's Encrypt** certificates automatically; you do **not** need Certbot on the host unless you deliberately run TLS outside Caddy.
+Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-docker`** bundle **`vm-host-oci`** (Caddy on **:80** and **:443**). Caddy requests and renews **Let's Encrypt** certificates automatically; you do **not** need Certbot on the host unless you deliberately run TLS outside Caddy.
 
 #### When this applies
 
-- You have deployed (or will deploy) **`projects/deploy-docker`** with environment **`oci-vm`** so Caddy serves **`api.worldcliques.org`**, **`auth.worldcliques.org`**, and explicit HTML names (default **`worldcliques.org`**; add `www` or others via **`routing.html_hosts`** in **`deployments/vm-host-oci/config.json`** — see `projects/deploy-docker/DEPLOY_LOCAL.md`).
+- You have deployed (or will deploy) **`projects/deploy-docker`** with **`./scripts/up.sh vm-host-oci …`** so Caddy serves **`api.worldcliques.org`**, **`auth.worldcliques.org`**, and explicit HTML names (default **`worldcliques.org`**; add `www` or others via **`routing.html_hosts`** in **`deployments/vm-host-oci/config.json`** — see `projects/deploy-docker/DEPLOY_LOCAL.md`).
 - You want **public** certificates instead of lab-only **`tls internal`** (`WC_CADDY_TLS=internal`).
 
 #### Prerequisites
@@ -245,7 +245,7 @@ Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-doc
 |-------------|-----|
 | **DNS** | Every hostname Caddy advertises must have an **`A`** (and optionally **`AAAA`**) record pointing at this instance's **public** IP (or a stable load balancer that forwards **:80** / **:443** to Caddy). |
 | **Reachability** | The internet (or Let's Encrypt's validation servers) must reach this host on **TCP 80** for **HTTP-01** validation. **443** must be reachable for HTTPS clients after issuance. |
-| **No `tls internal` for prod** | Before running `./scripts/up.sh oci-vm infra …`, **do not** set `WC_CADDY_TLS=internal` if you want Let's Encrypt; that mode uses Caddy's internal CA instead. |
+| **No `tls internal` for prod** | Before running `./scripts/up.sh vm-host-oci infra …`, **do not** set `WC_CADDY_TLS=internal` if you want Let's Encrypt; that mode uses Caddy's internal CA instead. |
 | **Contact email (recommended)** | Set `WC_CADDY_ACME_EMAIL` so the generated Caddyfile includes an ACME account email (expiry notices, account recovery). |
 
 #### Steps (happy path — HTTP-01, one cert per name)
@@ -277,7 +277,7 @@ Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-doc
 5. **Start the stack** from `projects/deploy-docker` so Caddy loads the **generated** `Caddyfile` (not the lab `tls internal` variant):
 
    ```bash
-   ./scripts/up.sh oci-vm infra application
+   ./scripts/up.sh vm-host-oci infra application
    ```
 
 6. **First issuance** happens when Caddy starts and negotiates ACME. If something fails, inspect Caddy logs:
@@ -292,7 +292,7 @@ Use this when you want **browser-trusted HTTPS** on the VM for the **`deploy-doc
 
 #### Wildcard `*.worldcliques.org` (optional, not in default Caddyfile)
 
-The reference **`oci-vm`** Caddyfile uses **only explicit hostnames** (default apex + `www`) so HTTP-01 and DNS stay simple. If you later add a **`*.worldcliques.org`** site block, Let's Encrypt **wildcard** certificates require **DNS-01** validation, not HTTP-01 on **:80** alone—see [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https) and DNS modules for your DNS host.
+The reference **`vm-host-oci`** generated Caddyfile uses **only explicit hostnames** (default apex + `www`) so HTTP-01 and DNS stay simple. If you later add a **`*.worldcliques.org`** site block, Let's Encrypt **wildcard** certificates require **DNS-01** validation, not HTTP-01 on **:80** alone—see [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https) and DNS modules for your DNS host.
 
 #### Lab / staging without public DNS
 
@@ -300,7 +300,7 @@ If names do not resolve publicly, use **`WC_CADDY_TLS=internal`** and trust Cadd
 
 #### If you do not use Caddy
 
-If TLS terminates elsewhere (load balancer, Ingress, Cloudflare “full strict” with origin certs), adjust that layer’s docs instead; this section assumes **Caddy** is the ACME client as in **`infra-oci-vm.yml`**.
+If TLS terminates elsewhere (load balancer, Ingress, Cloudflare “full strict” with origin certs), adjust that layer’s docs instead; this section assumes **Caddy** is the ACME client as in the **generated** **`vm-host-oci`** edge compose under **`.generated/`**.
 
 ## Undo / rollback (first pass)
 

@@ -33,8 +33,8 @@ Bundles are **compiled on every `up.sh` run**. Containers still use old config u
 - Prefer a full infra cycle after editing edge services (Caddy, Keycloak):
 
   ```bash
-  ./scripts/down.sh 127.0.0.1
-  ./scripts/up.sh 127.0.0.1
+  ./scripts/down.sh local-path-127
+  ./scripts/up.sh local-path-127
   ```
 
 - Or force recreate only the edge project (see `resolved.json` → `compose_projects.edge` and `paths.edge_compose`):
@@ -64,8 +64,8 @@ Bundles are **compiled on every `up.sh` run**. Containers still use old config u
 Bring up **infra** first so the shared Docker network exists, then **application**:
 
 ```bash
-./scripts/up.sh infra 127.0.0.1
-./scripts/up.sh application 127.0.0.1
+./scripts/up.sh infra local-path-127
+./scripts/up.sh application local-path-127
 ```
 
 The exact network name is in `.generated/<deployment>/resolved.json` → `network_name`.
