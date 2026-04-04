@@ -19,6 +19,7 @@ When we talk about a **schema** in this repo, we standardize on: **schema = JSON
 
 - **Vocabulary + reference POC** (abeja-reina `.ray` output): [`projects/docs/entity-schema-contract.md`](projects/docs/entity-schema-contract.md)
 - **Platform direction** (everything as an entity, **transforms**, relationship/action ideas, catch-all shapes for OpenAPI-like blobs, **incremental** adoption — code now, extract patterns later): [`projects/docs/guiding-principles-entity-model.md`](projects/docs/guiding-principles-entity-model.md)
+- **Deploy-docker migration** (entity-schema for `deployment.json`, `routing.json`, `services.json`, `config.json`; compile as transform): [`projects/docs/deploy-entity-schema-migration-plan.md`](projects/docs/deploy-entity-schema-migration-plan.md)
 
 **Note:** **deploy-docker**’s **`schemas/`** is today **JSON Schema for deployment manifests** — we intend to **converge** toward the entity-first model over time; see the guiding doc for intent vs current layout.
 

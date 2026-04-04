@@ -27,6 +27,7 @@ Add a row for every doc you care about tracking. Paths are relative to **`projec
 | VAP platform — prototype pattern | `vap-platform-prototype.md` | Master meta-schema, **Schema** registry first, then domain entities; OpenAPI-only contracts, file store, faux broker |
 | Entity schema contract (agent-0 standard) | `entity-schema-contract.md` | Vocabulary: **schema** = entity `*.schema.json`; **master schema** = contract for those files; link to abeja-reina reference CLI tree |
 | Guiding principles — entity model & transforms | `guiding-principles-entity-model.md` | Entities as SoT, **transforms**, relationship/action entities (sketch), catch-all shapes for external specs, pragmatic code-first evolution |
+| Deploy-docker → entity schema (migration plan) | `deploy-entity-schema-migration-plan.md` | Phased plan: `deployment.json` + routing/services/config as entities; compile as transform; optional JSON Schema retirement |
 | Nmap open ports (worldcliques.org) | `nmap-open-ports.md` | Captured Nmap output (2026-03-31) listing open TCP services + some NSE findings |
 
 ---
@@ -53,3 +54,4 @@ Add a row for every doc you care about tracking. Paths are relative to **`projec
 | 2026-04-02 | Converted `nmap-open-ports.txt` into `nmap-open-ports.md` and indexed. |
 | 2026-04-04 | Added **`entity-schema-contract.md`** (entity vs master schema, reference path under abeja-reina); indexed. |
 | 2026-04-04 | Added **`guiding-principles-entity-model.md`** (transforms, relationships, actions, catch-all shapes, incremental adoption); indexed; cross-linked from entity contract. |
+| 2026-04-04 | Added **`deploy-entity-schema-migration-plan.md`** (deploy-docker sources → entity-schema phases). |
